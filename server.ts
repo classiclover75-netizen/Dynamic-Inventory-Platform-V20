@@ -142,7 +142,9 @@ async function getLocalDB() {
 }
 
 async function saveLocalDB(data: any) {
-  await fs.promises.writeFile(LOCAL_DB_PATH, JSON.stringify(data, null, 2));
+  const tmpPath = `${LOCAL_DB_PATH}.tmp`;
+  await fs.promises.writeFile(tmpPath, JSON.stringify(data, null, 2));
+  await fs.promises.rename(tmpPath, LOCAL_DB_PATH);
 }
 
 async function syncDatabaseParity() {
@@ -1696,9 +1698,28 @@ app.put('/api/pageRows/:name', async (req, res) => {
         if (isUnsupported) {
           console.warn("Transaction not supported, falling back to sequential delete/insert:", txnErr.message);
           
-          await PageRow.deleteMany({ pageName: name });
-          if (newRows.length > 0) {
-            await PageRow.insertMany(newRows.map((row: any) => ({ pageName: name, data: row })));
+          const backupRows = await PageRow.find({ pageName: name }).lean();
+          
+          try {
+            await PageRow.deleteMany({ pageName: name });
+            if (newRows.length > 0) {
+              await PageRow.insertMany(newRows.map((row: any) => ({ pageName: name, data: row })));
+            }
+          } catch (fallbackErr) {
+            console.error("Fallback delete/insert failed, attempting to restore backup...", fallbackErr);
+            try {
+              if (backupRows.length > 0) {
+                await PageRow.insertMany(backupRows.map((r: any) => {
+                  const doc = { ...r };
+                  delete doc._id;
+                  delete doc.__v;
+                  return doc;
+                }));
+              }
+            } catch (restoreErr) {
+              console.error("Critical: Failed to restore backup!", restoreErr);
+            }
+            throw fallbackErr;
           }
         } else {
           throw txnErr;
