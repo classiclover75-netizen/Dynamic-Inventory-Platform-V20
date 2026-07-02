@@ -1298,14 +1298,7 @@ function AppContent() {
         }
       });
 
-      const response = await fetch(
-        `/api/pageRows/${encodeURIComponent(trackerName)}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: repairedTrackerRows }),
-        },
-      );
+      const response = await putRows(trackerName, repairedTrackerRows);
       if (!response.ok) throw new Error("Failed to sync to server");
 
       setState((prev) => ({
