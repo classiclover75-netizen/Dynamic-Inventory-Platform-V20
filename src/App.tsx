@@ -47,6 +47,7 @@ import { GlobalCombinationCopyBoxes } from "./components/GlobalCombinationCopyBo
 import { GlobalCopyBoxesSettingsModal } from "./components/GlobalCopyBoxesSettingsModal";
 import { CreateTrackerSelectionModal } from "./components/CreateTrackerSelectionModal";
 import { decodeHtmlEntities, renderHighlightedText, parseMultiSource } from "./lib/appUtils";
+import { savePageConfig } from "./lib/api";
 import {
   AppState,
   Column,
@@ -1431,11 +1432,7 @@ function AppContent() {
     const updatedConfig = { ...activeConfig, columns: updatedColumns };
 
     try {
-      await fetch(`/api/pageConfigs/${encodeURIComponent(state.activePage)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: updatedConfig }),
-      });
+      await savePageConfig(state.activePage, updatedConfig);
       setState((prev) => ({
         ...prev,
         pageConfigs: { ...prev.pageConfigs, [state.activePage]: updatedConfig },
@@ -1454,11 +1451,7 @@ function AppContent() {
     const updatedConfig = { ...activeConfig, columns: updatedColumns };
 
     try {
-      await fetch(`/api/pageConfigs/${encodeURIComponent(state.activePage)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: updatedConfig }),
-      });
+      await savePageConfig(state.activePage, updatedConfig);
       setState((prev) => ({
         ...prev,
         pageConfigs: { ...prev.pageConfigs, [state.activePage]: updatedConfig },
@@ -1498,11 +1491,7 @@ function AppContent() {
     const updatedConfig = { ...activeConfig, columns: currentColumns };
 
     try {
-      await fetch(`/api/pageConfigs/${encodeURIComponent(state.activePage)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: updatedConfig }),
-      });
+      await savePageConfig(state.activePage, updatedConfig);
       setState((prev) => ({
         ...prev,
         pageConfigs: { ...prev.pageConfigs, [state.activePage]: updatedConfig },
@@ -1835,11 +1824,7 @@ function AppContent() {
     closeModal: boolean = true,
   ) => {
     try {
-      await fetch(`/api/pageConfigs/${encodeURIComponent(state.activePage)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config }),
-      });
+      await savePageConfig(state.activePage, config);
 
       setState((prev) => ({
         ...prev,
@@ -1923,11 +1908,7 @@ function AppContent() {
     };
 
     try {
-      await fetch(`/api/pageConfigs/${encodeURIComponent(state.activePage)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: updatedConfig }),
-      });
+      await savePageConfig(state.activePage, updatedConfig);
 
       setState((prev) => ({
         ...prev,
@@ -1964,11 +1945,7 @@ function AppContent() {
     };
 
     try {
-      await fetch(`/api/pageConfigs/${encodeURIComponent(state.activePage)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: updatedConfig }),
-      });
+      await savePageConfig(state.activePage, updatedConfig);
 
       setState((prev) => ({
         ...prev,
@@ -5269,14 +5246,7 @@ function AppContent() {
 
           try {
             await Promise.all([
-              fetch(
-                `/api/pageConfigs/${encodeURIComponent(state.activePage)}`,
-                {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ config: updatedConfig }),
-                },
-              ),
+              savePageConfig(state.activePage, updatedConfig),
               fetch(
                 `/api/pageRows/${encodeURIComponent(state.activePage)}/append`,
                 {
