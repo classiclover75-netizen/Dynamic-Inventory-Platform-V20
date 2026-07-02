@@ -47,7 +47,7 @@ import { GlobalCombinationCopyBoxes } from "./components/GlobalCombinationCopyBo
 import { GlobalCopyBoxesSettingsModal } from "./components/GlobalCopyBoxesSettingsModal";
 import { CreateTrackerSelectionModal } from "./components/CreateTrackerSelectionModal";
 import { decodeHtmlEntities, renderHighlightedText, parseMultiSource } from "./lib/appUtils";
-import { savePageConfig, patchRow, deleteRow } from "./lib/api";
+import { savePageConfig, patchRow, deleteRow, putRows, appendPageRows, bulkPatchRows } from "./lib/api";
 import {
   AppState,
   Column,
@@ -1201,11 +1201,7 @@ function AppContent() {
     }
 
     try {
-      await fetch(`/api/pageRows/${encodeURIComponent(targetPage)}/bulk`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order: newRows.map(r => r.id) }),
-      });
+      await bulkPatchRows(targetPage, { order: newRows.map(r => r.id) });
 
       setState((prev) => ({
         ...prev,
@@ -1401,11 +1397,7 @@ function AppContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trackerName, config: newConfig }),
       });
-      await fetch(`/api/pageRows/${encodeURIComponent(trackerName)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: newRows }),
-      });
+      await putRows(trackerName, newRows);
 
       setState((prev) => ({
         ...prev,
@@ -1785,11 +1777,7 @@ function AppContent() {
 
   const handleClearPageData = async (pageName: string) => {
     try {
-      await fetch(`/api/pageRows/${encodeURIComponent(pageName)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: [] }),
-      });
+      await putRows(pageName, []);
 
       setState((prev) => ({
         ...prev,
@@ -1991,14 +1979,7 @@ function AppContent() {
       if (editingRowId && newRows.length === 1) {
         response = await patchRow(targetPage, editingRowId, newRows[0], force);
       } else {
-        response = await fetch(
-          `/api/pageRows/${encodeURIComponent(targetPage)}/append${force ? "?force=true" : ""}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rows: newRows }),
-          },
-        );
+        response = await appendPageRows(targetPage, newRows, force);
       }
 
       if (!response.ok) {
@@ -2089,25 +2070,11 @@ function AppContent() {
         }
         
         if (Object.keys(updatesObj).length > 0) {
-          await fetch(
-            `/api/pageRows/${encodeURIComponent(trackerName)}/bulk`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ updates: updatesObj }),
-            },
-          );
+          await bulkPatchRows(trackerName, { updates: updatesObj });
         }
 
         if (appendRows.length > 0) {
-          await fetch(
-            `/api/pageRows/${encodeURIComponent(trackerName)}/append`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ rows: appendRows }),
-            },
-          );
+          await appendPageRows(trackerName, appendRows);
         }
 
         if (updatedTracker) {
@@ -2184,11 +2151,7 @@ function AppContent() {
         return;
       }
 
-      const res = await fetch(`/api/pageRows/${encodeURIComponent(pageName)}/bulk`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates: updatesMap }),
-      });
+      const res = await bulkPatchRows(pageName, { updates: updatesMap });
 
       if (!res.ok) throw new Error("Failed to update bulk sources");
 
@@ -5200,14 +5163,7 @@ function AppContent() {
           try {
             await Promise.all([
               savePageConfig(state.activePage, updatedConfig),
-              fetch(
-                `/api/pageRows/${encodeURIComponent(state.activePage)}/append`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ rows: newRows }),
-                },
-              ),
+              appendPageRows(state.activePage, newRows),
             ]);
 
             setState((prev) => ({
