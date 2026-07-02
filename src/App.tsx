@@ -5564,14 +5564,7 @@ function AppContent() {
               ...state.pageConfigs[state.activePage],
               copyBoxConfig: settings,
             };
-            await fetch(
-              `/api/pageConfigs/${encodeURIComponent(state.activePage)}`,
-              {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ config: updatedConfig }),
-              },
-            );
+            await savePageConfig(state.activePage, updatedConfig);
             setState((prev) => ({
               ...prev,
               pageConfigs: {
