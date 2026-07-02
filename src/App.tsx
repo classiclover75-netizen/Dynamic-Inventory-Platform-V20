@@ -46,6 +46,7 @@ import { DuplicateFinderModal } from "./components/DuplicateFinderModal";
 import { GlobalCombinationCopyBoxes } from "./components/GlobalCombinationCopyBoxes";
 import { GlobalCopyBoxesSettingsModal } from "./components/GlobalCopyBoxesSettingsModal";
 import { TopHeaderBar } from "./components/TopHeaderBar";
+import { PageTabsBar } from "./components/PageTabsBar";
 import { ColumnResizeHandle } from "./components/ColumnResizeHandle";
 import { CreateTrackerSelectionModal } from "./components/CreateTrackerSelectionModal";
 import { decodeHtmlEntities, renderHighlightedText, parseMultiSource } from "./lib/appUtils";
@@ -4122,26 +4123,7 @@ function AppContent() {
         handleImportData={handleImportData}
       />
 
-      <div className="flex gap-1.5 flex-wrap items-center bg-white border border-[#d8d8d8] rounded-md p-2 min-h-[44px]">
-        {state.pages.length === 0 ? (
-          <span className="text-xs text-[#90a4ae] font-bold">
-            No pages yet. Click Add Page to create one.
-          </span>
-        ) : (
-          state.pages.map((page) => (
-            <button
-              key={page}
-              className={`border border-[#cfd8dc] rounded-full px-2.5 py-1 text-xs font-bold cursor-pointer transition-colors ${page === state.activePage ? "bg-[#2b579a] text-white border-[#2b579a]" : "bg-[#eceff1] text-[#37474f] hover:bg-gray-200"}`}
-              onClick={() => {
-                setState((prev) => ({ ...prev, activePage: page }));
-                toast(`Active page: ${page}`);
-              }}
-            >
-              {page}
-            </button>
-          ))
-        )}
-      </div>
+      <PageTabsBar pages={state.pages} activePage={state.activePage} setState={setState} />
 
       {activeConfig.copyBoxConfig && activeConfig.showCopyBoxes !== false && (
         <GlobalCombinationCopyBoxes
