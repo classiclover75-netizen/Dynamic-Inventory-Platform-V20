@@ -47,7 +47,7 @@ import { GlobalCombinationCopyBoxes } from "./components/GlobalCombinationCopyBo
 import { GlobalCopyBoxesSettingsModal } from "./components/GlobalCopyBoxesSettingsModal";
 import { CreateTrackerSelectionModal } from "./components/CreateTrackerSelectionModal";
 import { decodeHtmlEntities, renderHighlightedText, parseMultiSource } from "./lib/appUtils";
-import { savePageConfig } from "./lib/api";
+import { savePageConfig, patchRow, deleteRow } from "./lib/api";
 import {
   AppState,
   Column,
@@ -1527,14 +1527,7 @@ function AppContent() {
       // 3. Save to database in the background
       pendingSavesRef.current += 1;
       try {
-        await fetch(
-          `/api/pageRows/${encodeURIComponent(pageName)}/${encodeURIComponent(rowId)}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ updates: { [colKey]: val } }),
-          },
-        );
+        await patchRow(pageName, rowId, { [colKey]: val });
       } catch (e) {
         toast("Failed to save inline edit");
       } finally {
@@ -1573,14 +1566,7 @@ function AppContent() {
 
           pendingSavesRef.current += 1;
           try {
-            await fetch(
-              `/api/pageRows/${encodeURIComponent(tracker)}/${encodeURIComponent(rowId)}`,
-              {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ updates: { [colKey]: val } }),
-              },
-            );
+            await patchRow(tracker, rowId, { [colKey]: val });
           } catch (e) {
             toast(`Failed to save inline edit to tracker ${tracker}`);
           } finally {
@@ -2003,14 +1989,7 @@ function AppContent() {
     try {
       let response;
       if (editingRowId && newRows.length === 1) {
-        response = await fetch(
-          `/api/pageRows/${encodeURIComponent(targetPage)}/${encodeURIComponent(editingRowId)}${force ? "?force=true" : ""}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ updates: newRows[0] }),
-          },
-        );
+        response = await patchRow(targetPage, editingRowId, newRows[0], force);
       } else {
         response = await fetch(
           `/api/pageRows/${encodeURIComponent(targetPage)}/append${force ? "?force=true" : ""}`,
@@ -2236,12 +2215,7 @@ function AppContent() {
     // Safety Verification Check: Force string conversion to prevent strict equality mismatch
     const safeRowId = String(rowId);
     try {
-      await fetch(
-        `/api/pageRows/${encodeURIComponent(targetPage)}/${encodeURIComponent(safeRowId)}`,
-        {
-          method: "DELETE",
-        },
-      );
+      await deleteRow(targetPage, safeRowId);
 
       setState((prev) => ({
         ...prev,
@@ -2267,12 +2241,7 @@ function AppContent() {
           (r) => String(r.id) !== safeRowId,
         );
         if (newTrackerRows.length < trackerRows.length) {
-          await fetch(
-            `/api/pageRows/${encodeURIComponent(trackerName)}/${encodeURIComponent(safeRowId)}`,
-            {
-              method: "DELETE",
-            },
-          );
+          await deleteRow(trackerName, safeRowId);
           setState((prev) => ({
             ...prev,
             pageRows: { ...prev.pageRows, [trackerName]: newTrackerRows },
@@ -2314,16 +2283,7 @@ function AppContent() {
     }
 
     try {
-      await fetch(
-        `/api/pageRows/${encodeURIComponent(targetPage)}/${encodeURIComponent(previewContext.rowId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            updates: { [previewContext.imageKey]: newImage.data || newImage },
-          }),
-        },
-      );
+      await patchRow(targetPage, previewContext.rowId, { [previewContext.imageKey]: newImage.data || newImage });
 
       setState((prev) => ({
         ...prev,
@@ -2353,14 +2313,7 @@ function AppContent() {
     }
 
     try {
-      await fetch(
-        `/api/pageRows/${encodeURIComponent(targetPage)}/${encodeURIComponent(rowId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ updates: { [imageKey]: "" } }),
-        },
-      );
+      await patchRow(targetPage, rowId, { [imageKey]: "" });
 
       setState((prev) => ({
         ...prev,
