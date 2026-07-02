@@ -46,6 +46,7 @@ import { DuplicateFinderModal } from "./components/DuplicateFinderModal";
 import { GlobalCombinationCopyBoxes } from "./components/GlobalCombinationCopyBoxes";
 import { GlobalCopyBoxesSettingsModal } from "./components/GlobalCopyBoxesSettingsModal";
 import { CreateTrackerSelectionModal } from "./components/CreateTrackerSelectionModal";
+import { decodeHtmlEntities, renderHighlightedText, parseMultiSource } from "./lib/appUtils";
 import {
   AppState,
   Column,
@@ -67,75 +68,7 @@ const initialConfig: PageConfig = {
   ],
 };
 
-const decodeHtmlEntities = (text: string) => {
-  if (!text) return text;
-  return String(text)
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/g, "'");
-};
 
-const renderHighlightedText = (text: string, highlight: string) => {
-  if (!highlight.trim()) return <>{text}</>;
-  const parts = text.split(new RegExp(`(${highlight})`, "gi"));
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === highlight.toLowerCase() ? (
-          <span
-            key={i}
-            className="bg-yellow-200 text-black px-1 rounded font-bold"
-          >
-            {part}
-          </span>
-        ) : (
-          part
-        ),
-      )}
-    </>
-  );
-};
-
-const parseMultiSourceCache = new Map<any, any[]>();
-
-const parseMultiSource = (val: any) => {
-  if (!val) return [];
-  if (parseMultiSourceCache.has(val)) {
-    const cached = parseMultiSourceCache.get(val);
-    return cached ? cached.map((item: any) => ({ ...item })) : [];
-  }
-
-  let result: any[];
-  try {
-    const parsed = typeof val === "string" ? JSON.parse(val) : val;
-    const arr = Array.isArray(parsed) ? parsed : [];
-    result = arr.sort((a: any, b: any) => String(a.source || "").localeCompare(String(b.source || "")));
-  } catch (e) {
-    // Fallback for legacy flat numbers
-    result = [
-      {
-        source: "Default",
-        qty: parseFloat(String(val)) || 0,
-        color: "bg-gray-100 text-gray-800 border-gray-200",
-      },
-    ];
-  }
-  
-  try {
-    if (typeof val === 'string' || typeof val === 'number') {
-      if (parseMultiSourceCache.size > 5000) {
-        parseMultiSourceCache.clear();
-      }
-      parseMultiSourceCache.set(val, result.map((item: any) => ({ ...item })));
-    }
-  } catch (e) {
-    // Safety fallback
-  }
-  
-  return result.map((item: any) => ({ ...item }));
-};
 
 
 const ColumnResizeHandle = ({
