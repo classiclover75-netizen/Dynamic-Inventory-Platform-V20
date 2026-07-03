@@ -383,10 +383,6 @@ function AppContent() {
     setActivePopupId(null);
   }, []);
 
-
-
-
-
   const [importProgress, setImportProgress] = useState<{
     message: string;
     percent: number | null;
