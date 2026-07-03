@@ -2811,6 +2811,10 @@ function AppContent() {
             originalRows={originalRows}
             isGhost={isGhostActive}
             ghostIds={ghostIds}
+            showArchived={showArchived}
+            setBox1Value={setBox1Value}
+            setBox2Value={setBox2Value}
+            activeAnchor={activeAnchor}
             state={state}
             activeConfig={activeConfig}
             inlineEdit={inlineEdit}
