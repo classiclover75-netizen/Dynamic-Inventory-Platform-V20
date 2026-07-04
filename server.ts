@@ -2297,27 +2297,62 @@ app.put('/api/state', async (req, res) => {
 });
 
 app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
+  const isStream = req.query.stream === '1';
+  if (isStream) {
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Transfer-Encoding': 'chunked', 'Cache-Control': 'no-cache' });
+  }
+
+  const sendProgress = (percent: number, message: string, file?: string) => {
+    if (isStream) {
+      res.write(JSON.stringify({ type: 'progress', percent, message, file }) + '\n');
+    }
+  };
+
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No zip file uploaded' });
+      const errorMsg = 'No zip file uploaded';
+      if (isStream) {
+        res.end(JSON.stringify({ type: 'error', error: errorMsg }) + '\n');
+        return;
+      } else {
+        return res.status(400).json({ error: errorMsg });
+      }
     }
 
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
     
+    sendProgress(5, 'Reading backup archive...');
+    
     // Extract uploads if existing
+    const uploadEntries = zipEntries.filter((entry: any) => entry.entryName.startsWith('uploads/') && !entry.isDirectory);
+    const totalUploadEntries = uploadEntries.length;
+    let extractedCount = 0;
+
     zipEntries.forEach((entry: any) => {
       if (entry.entryName.startsWith('uploads/') && !entry.isDirectory) {
+        extractedCount++;
+        if (totalUploadEntries > 0) {
+           const pct = 5 + Math.floor((extractedCount / totalUploadEntries) * 55);
+           sendProgress(pct, 'Extracting images...', entry.entryName.replace(/^uploads\//, ''));
+        }
         zip.extractEntryTo(entry.entryName, UPLOADS_DIR, false, true);
       }
     });
 
     const dataEntry = zipEntries.find((entry: any) => entry.entryName === 'data.json');
     if (!dataEntry) {
-      return res.status(400).json({ error: 'data.json not found in zip archive' });
+      const errorMsg = 'data.json not found in zip archive';
+      if (isStream) {
+        res.end(JSON.stringify({ type: 'error', error: errorMsg }) + '\n');
+        return;
+      } else {
+        return res.status(400).json({ error: errorMsg });
+      }
     }
 
     const payload = JSON.parse(dataEntry.getData().toString('utf8'));
+    sendProgress(65, 'Reading data.json...');
     const isBundle = !!payload.isBundle;
     const isSinglePage = !!(payload.name && Array.isArray(payload.rows) && !payload.pages) && !isBundle;
     console.log(`Import ZIP detected: ${isBundle ? 'Bundle' : isSinglePage ? 'Single Page' : 'Full Backup'}`);
@@ -2431,13 +2466,20 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     }
 
+    sendProgress(70, 'Preparing pages and rows...');
+
     // We do NOT process base64 images here because they are already extracted physical files.
     const processedPageRows = newState.pageRows || {};
 
     if (isUsingMongoDB) {
       if (isSinglePage || isBundle) {
         const pagesToUpdate = isBundle ? newState.pages : [payload.name];
-        for (const pageName of pagesToUpdate) {
+        for (let i = 0; i < pagesToUpdate.length; i++) {
+          const pageName = pagesToUpdate[i];
+          const pct = 70 + Math.floor((i / pagesToUpdate.length) * 25);
+          const rows = processedPageRows[pageName] || [];
+          sendProgress(pct, `Importing page "${pageName}" (${rows.length} rows)...`);
+          
           // Upsert page config
           await Page.findOneAndUpdate(
             { name: pageName },
@@ -2449,7 +2491,6 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
           await PageRow.deleteMany({ pageName });
 
           // Insert only the new rows for that page
-          const rows = processedPageRows[pageName] || [];
           const rowsToInsert = rows.map((row: any) => ({ pageName, data: row }));
           if (rowsToInsert.length > 0) {
             await PageRow.insertMany(rowsToInsert);
@@ -2465,6 +2506,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
           allNewRows.push(...processedPageRows[pageName]);
         }
         
+        sendProgress(96, 'Cleaning up unused images...');
         await cleanupOrphanImages(allOldRows, allNewRows, true);
         await diskSweepOrphans(allNewRows);
 
@@ -2485,14 +2527,18 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
 
         // Insert all rows
         const allRowsToInsert: any[] = [];
-        newState.pages.forEach((pageName: string) => {
+        const totalPages = newState.pages.length;
+        newState.pages.forEach((pageName: string, i: number) => {
+          const pct = 70 + Math.floor((i / Math.max(1, totalPages)) * 23);
           const rows = processedPageRows[pageName] || [];
+          sendProgress(pct, `Importing page "${pageName}" (${rows.length} rows)...`);
           rows.forEach((row: any) => {
             allRowsToInsert.push({ pageName, data: row });
           });
         });
 
         if (allRowsToInsert.length > 0) {
+          sendProgress(93, 'Writing to database...');
           await PageRow.insertMany(allRowsToInsert);
         }
         
@@ -2508,14 +2554,18 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       const db = await getLocalDB();
       if (isSinglePage || isBundle) {
         const pagesToUpdate = isBundle ? newState.pages : [payload.name];
-        for (const pageName of pagesToUpdate) {
+        for (let i = 0; i < pagesToUpdate.length; i++) {
+          const pageName = pagesToUpdate[i];
+          const pct = 70 + Math.floor((i / pagesToUpdate.length) * 25);
+          const newRows = processedPageRows[pageName] || [];
+          sendProgress(pct, `Importing page "${pageName}" (${newRows.length} rows)...`);
+          
           const pageIdx = db.pages.findIndex((p: any) => p.name === pageName);
           const newPageData = {
             name: pageName,
             config: newState.pageConfigs[pageName] || {},
-            rows: processedPageRows[pageName] || []
+            rows: newRows
           };
-
           if (pageIdx >= 0) {
             db.pages[pageIdx] = newPageData;
           } else {
@@ -2528,20 +2578,28 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
         db.pages.forEach((p: any) => {
           if (p.rows) allOldRows.push(...p.rows);
         });
-
         const allNewRows: any[] = [];
         for (const pageName in processedPageRows) {
           allNewRows.push(...processedPageRows[pageName]);
         }
+        
+        sendProgress(96, 'Cleaning up unused images...');
         await cleanupOrphanImages(allOldRows, allNewRows, true);
         await diskSweepOrphans(allNewRows);
 
+        const totalPages = newState.pages.length;
         const newDb = {
-          pages: newState.pages.map((name: string) => ({
-            name,
-            config: newState.pageConfigs[name] || {},
-            rows: processedPageRows[name] || []
-          })),
+          pages: newState.pages.map((name: string, i: number) => {
+            const pct = 70 + Math.floor((i / Math.max(1, totalPages)) * 25);
+            const rows = processedPageRows[name] || [];
+            sendProgress(pct, `Importing page "${name}" (${rows.length} rows)...`);
+            
+            return {
+              name,
+              config: newState.pageConfigs[name] || {},
+              rows: rows
+            };
+          }),
           settings: {
             globalCopyBoxes: newState.globalCopyBoxes,
             globalRowNoWidth: newState.globalRowNoWidth,
@@ -2554,14 +2612,23 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
 
     // Clean up temp file
     fs.unlinkSync(req.file.path);
-
-    res.json({ success: true });
+    
+    if (isStream) {
+      res.end(JSON.stringify({ type: 'done', percent: 100, message: 'Import complete', success: true }) + '\n');
+    } else {
+      res.json({ success: true });
+    }
   } catch (err: any) {
     console.error('Import zip error:', err);
     if (req.file && fs.existsSync(req.file.path)) {
       try { fs.unlinkSync(req.file.path); } catch (e) {}
     }
-    res.status(400).json({ error: err.message || 'Failed to import zip state' });
+    const errorMsg = err.message || 'Failed to import zip state';
+    if (isStream) {
+      res.end(JSON.stringify({ type: 'error', error: errorMsg }) + '\n');
+    } else {
+      res.status(400).json({ error: errorMsg });
+    }
   }
 });
 
