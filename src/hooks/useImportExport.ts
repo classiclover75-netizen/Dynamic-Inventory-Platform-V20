@@ -95,7 +95,7 @@ export function useImportExport(deps: {
   };
   const refetchAndHydrateState = async () => {
     try {
-      setImportProgress({ message: "Re-syncing UI state...", percent: 99 });
+      setImportProgress({ message: "Re-syncing UI state...", percent: 99 , currentFile: null });
       const stateRes = await fetch("/api/state");
       const stateData = await stateRes.json();
       if (!stateData || stateData.error) throw new Error("Failed to fetch state");
@@ -121,7 +121,7 @@ export function useImportExport(deps: {
       if (!Array.isArray(newPages) || newPages.length === 0 || !nextActivePage) {
         console.error("Hydration: imported pages list is empty");
         toast("Import finished but no pages found. Please verify the backup.");
-        setImportProgress({ message: "Import finished but no pages found.", percent: null });
+        setImportProgress({ message: "Import finished but no pages found.", percent: null , currentFile: null });
         setIsImporting(false);
         return;
       }
@@ -143,14 +143,14 @@ export function useImportExport(deps: {
         window.history.replaceState(null, "", "?page=" + encodeURIComponent(nextActivePage));
       }
 
-      setImportProgress({ message: "Data imported successfully!", percent: 100 });
+      setImportProgress({ message: "Data imported successfully!", percent: 100 , currentFile: null });
       toast("Data imported successfully");
       setIsImporting(false);
     } catch (err) {
       console.error("Hydration failed:", err);
       toast("Data imported but UI refresh failed. Please refresh the page manually.");
       setIsImporting(false);
-      setImportProgress({ message: "Processing...", percent: null });
+      setImportProgress({ message: "Processing...", percent: null , currentFile: null });
     }
   };
   const handleImportPageData = async (file: File) => {
@@ -161,7 +161,7 @@ export function useImportExport(deps: {
     const isZip = file.name.toLowerCase().endsWith(".zip");
     setImportProgress({
       message: `Processing ${isZip ? "ZIP" : "JSON"} file...`,
-      percent: null,
+      percent: null, currentFile: null
     });
 
     try {
@@ -169,18 +169,37 @@ export function useImportExport(deps: {
         const formData = new FormData();
         formData.append("backup", file);
 
-        const response = await fetch("/api/import-zip", {
+        const response = await fetch("/api/import-zip?stream=1", {
           method: "POST",
           body: formData,
         });
-
-        if (response.ok) {
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finished = false;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const evt = JSON.parse(line);
+            if (evt.type === "progress") {
+              setImportProgress({ message: evt.message, percent: evt.percent, currentFile: evt.file || null });
+            } else if (evt.type === "done") {
+              finished = true;
+            } else if (evt.type === "error") {
+              throw new Error(evt.error || "Import failed");
+            }
+          }
+        }
+        if (finished) {
+          setImportProgress({ message: "Finalizing...", percent: 100, currentFile: null });
           await refetchAndHydrateState();
         } else {
-          const errData = await response.json().catch(() => ({}));
-          toast(errData.error || "Failed to sync with server");
-          setIsImporting(false);
-          setImportProgress({ message: "Processing...", percent: null });
+          throw new Error("Import stream ended unexpectedly");
         }
       } else {
         // Handle JSON
@@ -199,14 +218,14 @@ export function useImportExport(deps: {
           const errData = await response.json().catch(() => ({}));
           toast(errData.error || "Failed to sync with server");
           setIsImporting(false);
-          setImportProgress({ message: "Processing...", percent: null });
+          setImportProgress({ message: "Processing...", percent: null , currentFile: null });
         }
       }
     } catch (err) {
       console.error("Sync error:", err);
       toast("An error occurred during import");
       setIsImporting(false);
-      setImportProgress({ message: "Processing...", percent: null });
+      setImportProgress({ message: "Processing...", percent: null , currentFile: null });
     }
   };
   const handleImportData = async (
@@ -219,7 +238,7 @@ export function useImportExport(deps: {
     const isZip = file.name.toLowerCase().endsWith(".zip");
     setImportProgress({
       message: `Processing ${isZip ? "ZIP" : "JSON"} file...`,
-      percent: null,
+      percent: null, currentFile: null
     });
 
     try {
@@ -227,17 +246,37 @@ export function useImportExport(deps: {
         const formData = new FormData();
         formData.append("backup", file);
 
-        const response = await fetch("/api/import-zip", {
+        const response = await fetch("/api/import-zip?stream=1", {
           method: "POST",
           body: formData,
         });
-
-        if (response.ok) {
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finished = false;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const evt = JSON.parse(line);
+            if (evt.type === "progress") {
+              setImportProgress({ message: evt.message, percent: evt.percent, currentFile: evt.file || null });
+            } else if (evt.type === "done") {
+              finished = true;
+            } else if (evt.type === "error") {
+              throw new Error(evt.error || "Import failed");
+            }
+          }
+        }
+        if (finished) {
+          setImportProgress({ message: "Finalizing...", percent: 100, currentFile: null });
           await refetchAndHydrateState();
         } else {
-          const errData = await response.json().catch(() => ({}));
-          toast(errData.error || "Failed to sync with server");
-          setIsImporting(false);
+          throw new Error("Import stream ended unexpectedly");
         }
       } else {
         // Handle JSON

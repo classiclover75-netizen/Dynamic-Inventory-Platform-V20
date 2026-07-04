@@ -319,7 +319,8 @@ function AppContent() {
   const [importProgress, setImportProgress] = useState<{
     message: string;
     percent: number | null;
-  }>({ message: "Processing...", percent: null });
+    currentFile: string | null;
+  }>({ message: "Processing...", percent: null, currentFile: null });
 
   const {
     handleExportData,
@@ -2980,6 +2981,9 @@ function AppContent() {
             <p className="text-gray-500 text-center mb-4">
               {importProgress.message}
             </p>
+            {importProgress.currentFile && (
+              <p className="text-gray-400 text-xs text-center mb-2 truncate w-full" title={importProgress.currentFile}>{importProgress.currentFile}</p>
+            )}
             <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
               {importProgress.percent !== null ? (
                 <div
