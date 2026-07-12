@@ -4,6 +4,7 @@ import { Lock, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { CopyPopupNotification } from "./CopyPopupNotification";
 import { decodeHtmlEntities, parseMultiSource } from "../lib/appUtils";
+import { sanitizeHtml } from "../lib/sanitizeHtml";
 
 export const TableView = ({
   config, rows, queries, isSecondary, showArchived, setBox1Value, setBox2Value, activeAnchor, originalRows, isGhost, ghostIds,
@@ -619,12 +620,13 @@ export const TableView = ({
                                                     <span
                                                       className="whitespace-pre-wrap"
                                                       dangerouslySetInnerHTML={{
-                                                        __html:
+                                                        __html: sanitizeHtml(
                                                           highlightHtmlText(
                                                             displayText,
                                                             colTokens,
                                                             isGhost,
-                                                          ),
+                                                          )
+                                                        ),
                                                       }}
                                                     />
                                                   ) : (
@@ -997,10 +999,12 @@ export const TableView = ({
                                                 <span
                                                   className="whitespace-pre-wrap"
                                                   dangerouslySetInnerHTML={{
-                                                    __html: highlightHtmlText(
-                                                      strVal,
-                                                      colTokens,
-                                                      isGhost,
+                                                    __html: sanitizeHtml(
+                                                      highlightHtmlText(
+                                                        strVal,
+                                                        colTokens,
+                                                        isGhost,
+                                                      )
                                                     ),
                                                   }}
                                                 />
@@ -1035,10 +1039,12 @@ export const TableView = ({
                                       {hasHtmlRaw ? (
                                         <span
                                           dangerouslySetInnerHTML={{
-                                            __html: highlightHtmlText(
-                                              strRawVal,
-                                              colTokens,
-                                              isGhost,
+                                            __html: sanitizeHtml(
+                                              highlightHtmlText(
+                                                strRawVal,
+                                                colTokens,
+                                                isGhost,
+                                              )
                                             ),
                                           }}
                                         />
