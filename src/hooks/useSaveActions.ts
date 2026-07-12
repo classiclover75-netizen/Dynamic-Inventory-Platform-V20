@@ -110,9 +110,9 @@ export function useSaveActions(deps: {
         )
         .map(([name]) => name);
 
-      for (const trackerName of linkedTrackers) {
+      await Promise.all(linkedTrackers.map(async (trackerName) => {
         const trackerConfig = state.pageConfigs[trackerName];
-        if (!trackerConfig) continue;
+        if (!trackerConfig) return;
         const trackerRows = [...(state.pageRows[trackerName] || [])];
         let updatedTracker = false;
         
@@ -164,7 +164,7 @@ export function useSaveActions(deps: {
             pageRows: { ...prev.pageRows, [trackerName]: trackerRows },
           }));
         }
-      }
+      }));
 
       // Jab database se OK aa jaye, tabhi success message show karein
       if (returnToImagePreview) {
