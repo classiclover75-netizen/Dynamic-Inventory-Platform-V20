@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import {
   Settings,
@@ -285,7 +285,9 @@ function AppContent() {
   const [primarySearchTags, setPrimarySearchTags] = useState<string[]>([]);
   const [secondarySearchTags, setSecondarySearchTags] = useState<string[]>([]);
   const currentSearch = pageSearchQueries[state.activePage] || "";
+  const deferredSearch = useDeferredValue(currentSearch);
   const [secondarySearchQuery, setSecondarySearchQuery] = useState("");
+  const deferredSecondarySearch = useDeferredValue(secondarySearchQuery);
   const [activeSearchView, setActiveSearchView] = useState<
     "primary" | "secondary"
   >("primary");
@@ -1420,7 +1422,7 @@ function AppContent() {
 
   const filteredRows = useMemo(() => {
     let rows = activeRowsWithSum;
-    const activeQueries = [...primarySearchTags, currentSearch.trim()].filter(
+    const activeQueries = [...primarySearchTags, deferredSearch.trim()].filter(
       Boolean,
     );
     if (activeQueries.length > 0) {
@@ -1519,7 +1521,7 @@ function AppContent() {
     return sortRows(rows, activeConfig.columns);
   }, [
     activeRowsWithSum,
-    currentSearch,
+    deferredSearch,
     primarySearchTags,
     activeColumnsWithSum,
     activeConfig.isTrackerPage,
@@ -1537,7 +1539,7 @@ function AppContent() {
     let rows = secRows;
     const activeQueries = [
       ...secondarySearchTags,
-      secondarySearchQuery.trim(),
+      deferredSecondarySearch.trim(),
     ].filter(Boolean);
     if (activeQueries.length > 0) {
       const compiledQueries = compileSearchQueries(activeQueries);
@@ -1637,7 +1639,7 @@ function AppContent() {
     state.pageRows,
     state.pageConfigs,
     activeConfig.secondarySearchPage,
-    secondarySearchQuery,
+    deferredSecondarySearch,
     secondarySearchTags,
     trackerFilter,
     trackerSort,
