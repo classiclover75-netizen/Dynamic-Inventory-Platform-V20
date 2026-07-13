@@ -173,7 +173,7 @@ export function useImportExport(deps: {
           method: "POST",
           body: formData,
         });
-        const reader = response.body!.getReader();
+        if (!response.ok) { let errText = "Failed to upload zip"; try { const errData = await response.json(); errText = errData.error || errText; } catch (e) { console.error(e); } throw new Error(errText); } const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         let finished = false;
@@ -250,7 +250,7 @@ export function useImportExport(deps: {
           method: "POST",
           body: formData,
         });
-        const reader = response.body!.getReader();
+        if (!response.ok) { let errText = "Failed to upload zip"; try { const errData = await response.json(); errText = errData.error || errText; } catch (e) { console.error(e); } throw new Error(errText); } const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         let finished = false;

@@ -2385,7 +2385,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
     const isSinglePage = !!(payload.name && Array.isArray(payload.rows) && !payload.pages) && !isBundle;
     console.log(`Import ZIP detected: ${isBundle ? 'Bundle' : isSinglePage ? 'Single Page' : 'Full Backup'}`);
     
-    let newState = {};
+    let newState: any = {};
 
     // Smart Fallback: Normalize different backup formats into a single robust structure
     if (isBundle) {
