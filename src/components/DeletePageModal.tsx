@@ -7,6 +7,7 @@ export const DeletePageModal = ({
   state,
   setState,
   setConfirmationModal,
+toast,
 }: any) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -35,22 +36,26 @@ export const DeletePageModal = ({
       message: `Are you sure you want to delete the page "${pageName}"? This action is permanent and will also delete any linked trackers.`,
       confirmLabel: "Yes, delete",
       onConfirm: () => {
-        setConfirmationModal({
-          isOpen: true,
-          title: `Final Warning: ${pageName}`,
-          message: `This is your last chance. "${pageName}" and ALL its data will be completely erased.`,
-          confirmLabel: "PERMANENTLY DELETE",
-          onConfirm: async () => {
+        setTimeout(() => {
+          setConfirmationModal({
+            isOpen: true,
+            title: `Final Warning: ${pageName}`,
+            message: `This is your last chance. "${pageName}" and ALL its data will be completely erased.`,
+            confirmLabel: "PERMANENTLY DELETE",
+            onConfirm: async () => {
             try {
               const res = await fetch(`/api/pages/${encodeURIComponent(pageName)}`, {
                 method: "DELETE",
               });
               const data = await res.json();
               if (!data.success) {
+                toast(`❌ Failed to delete page: ${data.error}`);
                 console.error(data.error);
                 return;
               }
-            } catch (err) {
+              toast(`✅ Page "${pageName}" deleted successfully!`);
+            } catch (err: any) {
+              toast(`❌ Network error while deleting page: ${err.message}`);
               console.error(err);
               return;
             }
@@ -93,6 +98,7 @@ export const DeletePageModal = ({
             onClose();
           }
         });
+        }, 0);
       }
     });
   };
