@@ -2037,13 +2037,12 @@ app.put('/api/state', async (req, res) => {
     const isSinglePage = !!(payload.name && Array.isArray(payload.rows) && !payload.pages) && !isBundle;
     
     let newState = payload;
-
     // Smart Fallback: Detect if the user uploaded a single-page backup instead of a full state backup
     if (isBundle) {
       newState = {
-        pages: payload.pages,
-        pageConfigs: payload.pageConfigs,
-        pageRows: payload.pageRows,
+        pages: payload.pages || [],
+        pageConfigs: payload.pageConfigs || {},
+        pageRows: payload.pageRows || {},
         globalCopyBoxes: null,
         globalRowNoWidth: 100,
         maxSearchHistory: 10
@@ -2052,14 +2051,41 @@ app.put('/api/state', async (req, res) => {
       newState = {
         pages: [payload.name],
         pageConfigs: { [payload.name]: payload.config || {} },
-        pageRows: { [payload.name]: payload.rows },
+        pageRows: { [payload.name]: Array.isArray(payload.rows) ? payload.rows : [] },
         // Keep default settings to prevent crashes
         globalCopyBoxes: null,
         globalRowNoWidth: 100,
         maxSearchHistory: 10
       };
+    } else if (payload.pages && payload.pages.length > 0 && typeof payload.pages[0] === 'object') {
+      // LocalDB legacy full backup format: { pages: [{ name, config, rows }] }
+      const pageConfigs = {};
+      const pageRows = {};
+      const pageNames = [];
+      payload.pages.forEach((p) => {
+        if (p && p.name) {
+          pageNames.push(p.name);
+          pageConfigs[p.name] = p.config || {};
+          pageRows[p.name] = p.rows || [];
+        }
+      });
+      newState = {
+        pages: pageNames,
+        pageConfigs,
+        pageRows,
+        globalCopyBoxes: payload.settings?.globalCopyBoxes ?? null,
+        globalRowNoWidth: payload.settings?.globalRowNoWidth ?? 100,
+        maxSearchHistory: payload.settings?.maxSearchHistory ?? 10
+      };
+    } else {
+      // Standard full backup format
+      newState = payload;
+      // Ensure fields exist so we don't crash from undefined reads
+      newState.pageConfigs = newState.pageConfigs || {};
+      newState.pageRows = newState.pageRows || {};
+      newState.pages = Array.isArray(newState.pages) ? newState.pages : [];
     }
-    
+
     // Fix duplicate IDs across all pages first
     if (newState.pageRows) {
       for (const pageName in newState.pageRows) {
@@ -2299,10 +2325,11 @@ app.put('/api/state', async (req, res) => {
 app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
   const isStream = req.query.stream === '1';
   if (isStream) {
-    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Transfer-Encoding': 'chunked', 'Cache-Control': 'no-cache' });
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked');
   }
 
-  const sendProgress = (percent: number, message: string, file?: string) => {
+  const sendProgress = (percent, message, file = undefined) => {
     if (isStream) {
       res.write(JSON.stringify({ type: 'progress', percent, message, file }) + '\n');
     }
@@ -2310,7 +2337,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
 
   try {
     if (!req.file) {
-      const errorMsg = 'No zip file uploaded';
+      const errorMsg = 'No backup file provided';
       if (isStream) {
         res.end(JSON.stringify({ type: 'error', error: errorMsg }) + '\n');
         return;
@@ -2319,17 +2346,17 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     }
 
+    sendProgress(5, 'Reading backup archive...');
+    
     const zip = new AdmZip(req.file.path);
     const zipEntries = zip.getEntries();
     
-    sendProgress(5, 'Reading backup archive...');
-    
     // Extract uploads if existing
-    const uploadEntries = zipEntries.filter((entry: any) => entry.entryName.startsWith('uploads/') && !entry.isDirectory);
+    const uploadEntries = zipEntries.filter((entry) => entry.entryName.startsWith('uploads/') && !entry.isDirectory);
     const totalUploadEntries = uploadEntries.length;
     let extractedCount = 0;
 
-    zipEntries.forEach((entry: any) => {
+    zipEntries.forEach((entry) => {
       if (entry.entryName.startsWith('uploads/') && !entry.isDirectory) {
         extractedCount++;
         if (totalUploadEntries > 0) {
@@ -2340,7 +2367,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     });
 
-    const dataEntry = zipEntries.find((entry: any) => entry.entryName === 'data.json');
+    const dataEntry = zipEntries.find((entry) => entry.entryName === 'data.json');
     if (!dataEntry) {
       const errorMsg = 'data.json not found in zip archive';
       if (isStream) {
@@ -2353,18 +2380,19 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
 
     const payload = JSON.parse(dataEntry.getData().toString('utf8'));
     sendProgress(65, 'Reading data.json...');
+
     const isBundle = !!payload.isBundle;
     const isSinglePage = !!(payload.name && Array.isArray(payload.rows) && !payload.pages) && !isBundle;
     console.log(`Import ZIP detected: ${isBundle ? 'Bundle' : isSinglePage ? 'Single Page' : 'Full Backup'}`);
     
-    let newState: any = {};
+    let newState = {};
 
     // Smart Fallback: Normalize different backup formats into a single robust structure
     if (isBundle) {
       newState = {
-        pages: payload.pages,
-        pageConfigs: payload.pageConfigs,
-        pageRows: payload.pageRows,
+        pages: payload.pages || [],
+        pageConfigs: payload.pageConfigs || {},
+        pageRows: payload.pageRows || {},
         globalCopyBoxes: null,
         globalRowNoWidth: 100,
         maxSearchHistory: 10
@@ -2380,10 +2408,10 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       };
     } else if (payload.pages && payload.pages.length > 0 && typeof payload.pages[0] === 'object') {
       // LocalDB legacy full backup format: { pages: [{ name, config, rows }] }
-      const pageConfigs: any = {};
-      const pageRows: any = {};
-      const pageNames: string[] = [];
-      payload.pages.forEach((p: any) => {
+      const pageConfigs = {};
+      const pageRows = {};
+      const pageNames = [];
+      payload.pages.forEach((p) => {
         if (p && p.name) {
           pageNames.push(p.name);
           pageConfigs[p.name] = p.config || {};
