@@ -2064,7 +2064,7 @@ function normalizeBackupPayload(payload: any) {
       pageOrder: []
     };
     pagesToUpdate = [payload.name];
-  } else if (payload.pages && payload.pages.length > 0 && typeof payload.pages[0] === 'object') {
+  } else if (Array.isArray(payload.pages) && payload.pages.length > 0 && typeof payload.pages[0] === 'object') {
     // LocalDB legacy full backup format: { pages: [{ name, config, rows }] }
     const pageConfigs: any = {};
     const pageRows: any = {};
@@ -2101,21 +2101,24 @@ function normalizeBackupPayload(payload: any) {
   }
 
   // Ensure fields exist so we don't crash from undefined reads
-  newState.pageConfigs = newState.pageConfigs || {};
-  newState.pageRows = newState.pageRows || {};
+  newState.pageConfigs = (newState.pageConfigs && typeof newState.pageConfigs === 'object' && !Array.isArray(newState.pageConfigs)) ? newState.pageConfigs : {};
+  newState.pageRows = (newState.pageRows && typeof newState.pageRows === 'object' && !Array.isArray(newState.pageRows)) ? newState.pageRows : {};
   newState.pages = Array.isArray(newState.pages) ? newState.pages : [];
 
   // Fix duplicate IDs across all pages first
   if (newState.pageRows) {
     for (const pageName in newState.pageRows) {
       const seenIds = new Set<string>();
-      newState.pageRows[pageName] = (newState.pageRows[pageName] || []).map((row: any) => {
-        if (!row.id || seenIds.has(String(row.id))) {
-          row.id = uuidv4();
-        }
-        seenIds.add(String(row.id));
-        return row;
-      });
+      const rowsArray = Array.isArray(newState.pageRows[pageName]) ? newState.pageRows[pageName] : [];
+      newState.pageRows[pageName] = rowsArray
+        .filter((row: any) => row && typeof row === 'object')
+        .map((row: any) => {
+          if (!row.id || seenIds.has(String(row.id))) {
+            row.id = uuidv4();
+          }
+          seenIds.add(String(row.id));
+          return row;
+        });
     }
   }
 
@@ -2123,16 +2126,21 @@ function normalizeBackupPayload(payload: any) {
   if (newState.pageConfigs && newState.pageRows) {
     for (const [trackerName, trackerConfig] of Object.entries(newState.pageConfigs)) {
       const config = trackerConfig as any;
-      if (config.linkedSourcePage && newState.pageRows[config.linkedSourcePage]) {
-        const sourceRows = newState.pageRows[config.linkedSourcePage];
+      if (!config || typeof config !== 'object') {
+        console.warn(`Skipping tracker repair for ${trackerName} due to invalid config`);
+        continue;
+      }
+      
+      if (config.linkedSourcePage && Array.isArray(newState.pageRows[config.linkedSourcePage])) {
+        const sourceRows = newState.pageRows[config.linkedSourcePage].filter((sr: any) => sr && typeof sr === 'object');
         
-        if (!newState.pageRows[trackerName]) {
+        if (!Array.isArray(newState.pageRows[trackerName])) {
           newState.pageRows[trackerName] = [];
         }
         
         const trackerRowsMap = new Map();
         for (const tr of newState.pageRows[trackerName]) {
-          if (tr.id) trackerRowsMap.set(String(tr.id), tr);
+          if (tr && typeof tr === 'object' && tr.id) trackerRowsMap.set(String(tr.id), tr);
         }
         
         const repairedTrackerRows = sourceRows.map((sr: any) => {
@@ -2144,7 +2152,7 @@ function normalizeBackupPayload(payload: any) {
             ];
             if (Array.isArray(config.columns)) {
               config.columns.forEach((c: any) => {
-                if (c.type === "sale_tracker" && c.key) {
+                if (c && typeof c === 'object' && c.type === "sale_tracker" && c.key) {
                   trackerKeysToKeep.push(c.key);
                 }
               });
