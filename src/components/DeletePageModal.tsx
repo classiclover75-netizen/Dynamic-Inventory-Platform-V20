@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Modal } from "./ui";
+import { useToast } from "./ToastProvider";
 
 export const DeletePageModal = ({
   isOpen,
@@ -7,9 +8,10 @@ export const DeletePageModal = ({
   state,
   setState,
   setConfirmationModal,
-toast,
 }: any) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+
 
   if (!isOpen) return null;
 
