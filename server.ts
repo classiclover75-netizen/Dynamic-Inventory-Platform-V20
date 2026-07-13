@@ -1749,50 +1749,6 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
   }
 });
 
-app.patch('/api/pageRows/:name(*)/:rowId', async (req, res) => {
-  try {
-    const { name, rowId } = req.params;
-    const { updates } = req.body;
-    const forceSave = req.query.force === 'true';
-
-    if (isUsingMongoDB) {
-      const rowToUpdate = await PageRow.findOne({ pageName: name, 'data.id': String(rowId) });
-      if (!rowToUpdate) {
-        return res.status(404).json({ error: 'Row not found' });
-      }
-
-      const newRowData = { ...rowToUpdate.data, ...updates };
-      const processedRow = await processRowImages(newRowData, forceSave);
-
-      await PageRow.findByIdAndUpdate(rowToUpdate._id, { data: processedRow });
-      await triggerLocalBackup();
-    } else {
-      const db = await getLocalDB();
-      const page = db.pages.find((p: any) => p.name === name);
-      if (!page) return res.status(404).json({ error: 'Page not found' });
-
-      const idx = page.rows?.findIndex((r: any) => String(r.id) === String(rowId));
-      if (idx === undefined || idx === -1) {
-        return res.status(404).json({ error: 'Row not found' });
-      }
-
-      const newRowData = { ...page.rows[idx], ...updates };
-      const processedRow = await processRowImages(newRowData, forceSave);
-
-      page.rows[idx] = processedRow;
-      await saveLocalDB(db);
-    }
-
-    res.json({ success: true });
-  } catch (err: any) {
-    if (err.message === 'SHARP_UNSUPPORTED_FORMAT') {
-      return res.status(400).json({ requiresConfirmation: true, error: "Unsupported image format detected. The system can only process standard images (JPG, PNG, WEBP, GIF, AVIF, TIFF). Do you want to force save this file as-is without processing?" });
-    }
-    console.error("PATCH Row Error:", err);
-    res.status(400).json({ error: err.message || 'Failed to update row' });
-  }
-});
-
 app.patch('/api/pageRows/:name(*)/bulk', async (req, res) => {
   try {
     const { name } = req.params;
@@ -1906,6 +1862,50 @@ app.patch('/api/pageRows/:name(*)/bulk', async (req, res) => {
     }
     console.error("PATCH Bulk Error:", err);
     res.status(400).json({ error: err.message || 'Failed to bulk update' });
+  }
+});
+
+app.patch('/api/pageRows/:name(*)/:rowId', async (req, res) => {
+  try {
+    const { name, rowId } = req.params;
+    const { updates } = req.body;
+    const forceSave = req.query.force === 'true';
+
+    if (isUsingMongoDB) {
+      const rowToUpdate = await PageRow.findOne({ pageName: name, 'data.id': String(rowId) });
+      if (!rowToUpdate) {
+        return res.status(404).json({ error: 'Row not found' });
+      }
+
+      const newRowData = { ...rowToUpdate.data, ...updates };
+      const processedRow = await processRowImages(newRowData, forceSave);
+
+      await PageRow.findByIdAndUpdate(rowToUpdate._id, { data: processedRow });
+      await triggerLocalBackup();
+    } else {
+      const db = await getLocalDB();
+      const page = db.pages.find((p: any) => p.name === name);
+      if (!page) return res.status(404).json({ error: 'Page not found' });
+
+      const idx = page.rows?.findIndex((r: any) => String(r.id) === String(rowId));
+      if (idx === undefined || idx === -1) {
+        return res.status(404).json({ error: 'Row not found' });
+      }
+
+      const newRowData = { ...page.rows[idx], ...updates };
+      const processedRow = await processRowImages(newRowData, forceSave);
+
+      page.rows[idx] = processedRow;
+      await saveLocalDB(db);
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    if (err.message === 'SHARP_UNSUPPORTED_FORMAT') {
+      return res.status(400).json({ requiresConfirmation: true, error: "Unsupported image format detected. The system can only process standard images (JPG, PNG, WEBP, GIF, AVIF, TIFF). Do you want to force save this file as-is without processing?" });
+    }
+    console.error("PATCH Row Error:", err);
+    res.status(400).json({ error: err.message || 'Failed to update row' });
   }
 });
 
