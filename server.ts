@@ -2030,120 +2030,147 @@ app.put('/api/settings', async (req, res) => {
   }
 });
 
+function normalizeBackupPayload(payload: any) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error("Unrecognized backup format: empty or non-object payload");
+  }
+
+  const isBundle = !!payload.isBundle;
+  const isSinglePage = !!(payload.name && Array.isArray(payload.rows) && !payload.pages) && !isBundle;
+
+  let newState: any = {};
+  let importType: 'merge' | 'replace' = (isBundle || isSinglePage) ? 'merge' : 'replace';
+  let pagesToUpdate: string[] = [];
+
+  if (isBundle) {
+    newState = {
+      pages: Array.isArray(payload.pages) ? payload.pages : [],
+      pageConfigs: payload.pageConfigs || {},
+      pageRows: payload.pageRows || {},
+      globalCopyBoxes: payload.globalCopyBoxes ?? null,
+      globalRowNoWidth: payload.globalRowNoWidth ?? 100,
+      maxSearchHistory: payload.maxSearchHistory ?? 10,
+      pageOrder: Array.isArray(payload.pageOrder) ? payload.pageOrder : []
+    };
+    pagesToUpdate = newState.pages;
+  } else if (isSinglePage) {
+    newState = {
+      pages: [payload.name],
+      pageConfigs: { [payload.name]: payload.config || {} },
+      pageRows: { [payload.name]: Array.isArray(payload.rows) ? payload.rows : [] },
+      globalCopyBoxes: null,
+      globalRowNoWidth: 100,
+      maxSearchHistory: 10,
+      pageOrder: []
+    };
+    pagesToUpdate = [payload.name];
+  } else if (payload.pages && payload.pages.length > 0 && typeof payload.pages[0] === 'object') {
+    // LocalDB legacy full backup format: { pages: [{ name, config, rows }] }
+    const pageConfigs: any = {};
+    const pageRows: any = {};
+    const pageNames: string[] = [];
+    payload.pages.forEach((p: any) => {
+      if (p && p.name) {
+        pageNames.push(p.name);
+        pageConfigs[p.name] = p.config || {};
+        pageRows[p.name] = p.rows || [];
+      }
+    });
+    newState = {
+      pages: pageNames,
+      pageConfigs,
+      pageRows,
+      globalCopyBoxes: payload.settings?.globalCopyBoxes ?? null,
+      globalRowNoWidth: payload.settings?.globalRowNoWidth ?? 100,
+      maxSearchHistory: payload.settings?.maxSearchHistory ?? 10,
+      pageOrder: Array.isArray(payload.settings?.pageOrder) ? payload.settings?.pageOrder : []
+    };
+  } else if (payload.pages && Array.isArray(payload.pages) && (payload.pages.length === 0 || typeof payload.pages[0] === 'string')) {
+    // Standard full backup format
+    newState = {
+      pages: Array.isArray(payload.pages) ? payload.pages : [],
+      pageConfigs: payload.pageConfigs || {},
+      pageRows: payload.pageRows || {},
+      globalCopyBoxes: payload.globalCopyBoxes ?? payload.settings?.globalCopyBoxes ?? null,
+      globalRowNoWidth: payload.globalRowNoWidth ?? payload.settings?.globalRowNoWidth ?? 100,
+      maxSearchHistory: payload.maxSearchHistory ?? payload.settings?.maxSearchHistory ?? 10,
+      pageOrder: Array.isArray(payload.pageOrder) ? payload.pageOrder : Array.isArray(payload.settings?.pageOrder) ? payload.settings?.pageOrder : []
+    };
+  } else {
+    throw new Error("Unrecognized backup format: no pages data found");
+  }
+
+  // Ensure fields exist so we don't crash from undefined reads
+  newState.pageConfigs = newState.pageConfigs || {};
+  newState.pageRows = newState.pageRows || {};
+  newState.pages = Array.isArray(newState.pages) ? newState.pages : [];
+
+  // Fix duplicate IDs across all pages first
+  if (newState.pageRows) {
+    for (const pageName in newState.pageRows) {
+      const seenIds = new Set<string>();
+      newState.pageRows[pageName] = (newState.pageRows[pageName] || []).map((row: any) => {
+        if (!row.id || seenIds.has(String(row.id))) {
+          row.id = uuidv4();
+        }
+        seenIds.add(String(row.id));
+        return row;
+      });
+    }
+  }
+
+  // Repair tracker rows from source pages before processing
+  if (newState.pageConfigs && newState.pageRows) {
+    for (const [trackerName, trackerConfig] of Object.entries(newState.pageConfigs)) {
+      const config = trackerConfig as any;
+      if (config.linkedSourcePage && newState.pageRows[config.linkedSourcePage]) {
+        const sourceRows = newState.pageRows[config.linkedSourcePage];
+        
+        if (!newState.pageRows[trackerName]) {
+          newState.pageRows[trackerName] = [];
+        }
+        
+        const trackerRowsMap = new Map();
+        for (const tr of newState.pageRows[trackerName]) {
+          if (tr.id) trackerRowsMap.set(String(tr.id), tr);
+        }
+        
+        const repairedTrackerRows = sourceRows.map((sr: any) => {
+          const existingTr = trackerRowsMap.get(String(sr.id));
+          if (existingTr) {
+            const trackerKeysToKeep = [
+              "total_qty",
+              "remaining_qty"
+            ];
+            if (Array.isArray(config.columns)) {
+              config.columns.forEach((c: any) => {
+                if (c.type === "sale_tracker" && c.key) {
+                  trackerKeysToKeep.push(c.key);
+                }
+              });
+            }
+            const preservedData: any = {};
+            for (const k of trackerKeysToKeep) {
+              if (k in existingTr) preservedData[k] = existingTr[k];
+            }
+            return { ...sr, ...preservedData };
+          } else {
+            return { ...sr, total_qty: "0" };
+          }
+        });
+        
+        newState.pageRows[trackerName] = repairedTrackerRows;
+      }
+    }
+  }
+
+  return { newState, importType, pagesToUpdate, isBundle, isSinglePage };
+}
+
 app.put('/api/state', async (req, res) => {
   try {
     const payload = req.body;
-    const isBundle = !!payload.isBundle;
-    const isSinglePage = !!(payload.name && Array.isArray(payload.rows) && !payload.pages) && !isBundle;
-    
-    let newState = payload;
-    // Smart Fallback: Detect if the user uploaded a single-page backup instead of a full state backup
-    if (isBundle) {
-      newState = {
-        pages: payload.pages || [],
-        pageConfigs: payload.pageConfigs || {},
-        pageRows: payload.pageRows || {},
-        globalCopyBoxes: null,
-        globalRowNoWidth: 100,
-        maxSearchHistory: 10
-      };
-    } else if (isSinglePage) {
-      newState = {
-        pages: [payload.name],
-        pageConfigs: { [payload.name]: payload.config || {} },
-        pageRows: { [payload.name]: Array.isArray(payload.rows) ? payload.rows : [] },
-        // Keep default settings to prevent crashes
-        globalCopyBoxes: null,
-        globalRowNoWidth: 100,
-        maxSearchHistory: 10
-      };
-    } else if (payload.pages && payload.pages.length > 0 && typeof payload.pages[0] === 'object') {
-      // LocalDB legacy full backup format: { pages: [{ name, config, rows }] }
-      const pageConfigs = {};
-      const pageRows = {};
-      const pageNames = [];
-      payload.pages.forEach((p) => {
-        if (p && p.name) {
-          pageNames.push(p.name);
-          pageConfigs[p.name] = p.config || {};
-          pageRows[p.name] = p.rows || [];
-        }
-      });
-      newState = {
-        pages: pageNames,
-        pageConfigs,
-        pageRows,
-        globalCopyBoxes: payload.settings?.globalCopyBoxes ?? null,
-        globalRowNoWidth: payload.settings?.globalRowNoWidth ?? 100,
-        maxSearchHistory: payload.settings?.maxSearchHistory ?? 10
-      };
-    } else {
-      // Standard full backup format
-      newState = payload;
-      // Ensure fields exist so we don't crash from undefined reads
-      newState.pageConfigs = newState.pageConfigs || {};
-      newState.pageRows = newState.pageRows || {};
-      newState.pages = Array.isArray(newState.pages) ? newState.pages : [];
-    }
-
-    // Fix duplicate IDs across all pages first
-    if (newState.pageRows) {
-      for (const pageName in newState.pageRows) {
-        const seenIds = new Set<string>();
-        newState.pageRows[pageName] = (newState.pageRows[pageName] || []).map((row: any) => {
-          if (!row.id || seenIds.has(String(row.id))) {
-            row.id = uuidv4();
-          }
-          seenIds.add(String(row.id));
-          return row;
-        });
-      }
-    }
-
-    // Repair tracker rows from source pages before processing
-    if (newState.pageConfigs && newState.pageRows) {
-      for (const [trackerName, trackerConfig] of Object.entries(newState.pageConfigs)) {
-        const config = trackerConfig as any;
-        if (config.linkedSourcePage && newState.pageRows[config.linkedSourcePage]) {
-          const sourceRows = newState.pageRows[config.linkedSourcePage];
-          
-          if (!newState.pageRows[trackerName]) {
-            newState.pageRows[trackerName] = [];
-          }
-          
-          const trackerRowsMap = new Map();
-          for (const tr of newState.pageRows[trackerName]) {
-            if (tr.id) trackerRowsMap.set(String(tr.id), tr);
-          }
-          
-          const repairedTrackerRows = sourceRows.map((sr: any) => {
-            const existingTr = trackerRowsMap.get(String(sr.id));
-            if (existingTr) {
-              const trackerKeysToKeep = [
-                "total_qty",
-                "remaining_qty"
-              ];
-              if (Array.isArray(config.columns)) {
-                config.columns.forEach((c: any) => {
-                  if (c.type === "sale_tracker" && c.key) {
-                    trackerKeysToKeep.push(c.key);
-                  }
-                });
-              }
-              const preservedData: any = {};
-              for (const k of trackerKeysToKeep) {
-                if (k in existingTr) preservedData[k] = existingTr[k];
-              }
-              return { ...sr, ...preservedData };
-            } else {
-              return { ...sr, total_qty: "0" };
-            }
-          });
-          
-          newState.pageRows[trackerName] = repairedTrackerRows;
-        }
-      }
-    }
+    const { newState, importType, pagesToUpdate, isBundle, isSinglePage } = normalizeBackupPayload(payload);
 
     // Process all images in the new state
     const processedPageRows: Record<string, any[]> = {};
@@ -2162,7 +2189,6 @@ app.put('/api/state', async (req, res) => {
 
     if (isUsingMongoDB) {
       if (isSinglePage || isBundle) {
-        const pagesToUpdate = isBundle ? newState.pages : [payload.name];
         for (const pageName of pagesToUpdate) {
           await Page.findOneAndUpdate(
             { name: pageName },
@@ -2259,7 +2285,6 @@ app.put('/api/state', async (req, res) => {
     } else {
       const db = await getLocalDB();
       if (isSinglePage || isBundle) {
-        const pagesToUpdate = isBundle ? newState.pages : [payload.name];
         for (const pageName of pagesToUpdate) {
           const pageIdx = db.pages.findIndex((p: any) => p.name === pageName);
           const newPageData = {
@@ -2380,119 +2405,8 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
 
     const payload = JSON.parse(dataEntry.getData().toString('utf8'));
     sendProgress(65, 'Reading data.json...');
-
-    const isBundle = !!payload.isBundle;
-    const isSinglePage = !!(payload.name && Array.isArray(payload.rows) && !payload.pages) && !isBundle;
+    const { newState, importType, pagesToUpdate, isBundle, isSinglePage } = normalizeBackupPayload(payload);
     console.log(`Import ZIP detected: ${isBundle ? 'Bundle' : isSinglePage ? 'Single Page' : 'Full Backup'}`);
-    
-    let newState: any = {};
-
-    // Smart Fallback: Normalize different backup formats into a single robust structure
-    if (isBundle) {
-      newState = {
-        pages: payload.pages || [],
-        pageConfigs: payload.pageConfigs || {},
-        pageRows: payload.pageRows || {},
-        globalCopyBoxes: null,
-        globalRowNoWidth: 100,
-        maxSearchHistory: 10
-      };
-    } else if (isSinglePage) {
-      newState = {
-        pages: [payload.name],
-        pageConfigs: { [payload.name]: payload.config || {} },
-        pageRows: { [payload.name]: Array.isArray(payload.rows) ? payload.rows : [] },
-        globalCopyBoxes: null,
-        globalRowNoWidth: 100,
-        maxSearchHistory: 10
-      };
-    } else if (payload.pages && payload.pages.length > 0 && typeof payload.pages[0] === 'object') {
-      // LocalDB legacy full backup format: { pages: [{ name, config, rows }] }
-      const pageConfigs = {};
-      const pageRows = {};
-      const pageNames = [];
-      payload.pages.forEach((p) => {
-        if (p && p.name) {
-          pageNames.push(p.name);
-          pageConfigs[p.name] = p.config || {};
-          pageRows[p.name] = p.rows || [];
-        }
-      });
-      newState = {
-        pages: pageNames,
-        pageConfigs,
-        pageRows,
-        globalCopyBoxes: payload.settings?.globalCopyBoxes ?? null,
-        globalRowNoWidth: payload.settings?.globalRowNoWidth ?? 100,
-        maxSearchHistory: payload.settings?.maxSearchHistory ?? 10
-      };
-    } else {
-      // Standard full backup format
-      newState = payload;
-      // Ensure fields exist so we don't crash from undefined reads
-      newState.pageConfigs = newState.pageConfigs || {};
-      newState.pageRows = newState.pageRows || {};
-      newState.pages = Array.isArray(newState.pages) ? newState.pages : [];
-    }
-
-    // Fix duplicate IDs across all pages first
-    if (newState.pageRows) {
-      for (const pageName in newState.pageRows) {
-        const seenIds = new Set<string>();
-        newState.pageRows[pageName] = (newState.pageRows[pageName] || []).map((row: any) => {
-          if (!row.id || seenIds.has(String(row.id))) {
-            row.id = uuidv4();
-          }
-          seenIds.add(String(row.id));
-          return row;
-        });
-      }
-    }
-
-    // Repair tracker rows from source pages before processing
-    if (newState.pageConfigs && newState.pageRows) {
-      for (const [trackerName, trackerConfig] of Object.entries(newState.pageConfigs)) {
-        const config = trackerConfig as any;
-        if (config.linkedSourcePage && newState.pageRows[config.linkedSourcePage]) {
-          const sourceRows = newState.pageRows[config.linkedSourcePage];
-          
-          if (!newState.pageRows[trackerName]) {
-            newState.pageRows[trackerName] = [];
-          }
-          
-          const trackerRowsMap = new Map();
-          for (const tr of newState.pageRows[trackerName]) {
-            if (tr.id) trackerRowsMap.set(String(tr.id), tr);
-          }
-          
-          const repairedTrackerRows = sourceRows.map((sr: any) => {
-            const existingTr = trackerRowsMap.get(String(sr.id));
-            if (existingTr) {
-              const trackerKeysToKeep = [
-                "total_qty",
-                "remaining_qty"
-              ];
-              if (Array.isArray(config.columns)) {
-                config.columns.forEach((c: any) => {
-                  if (c.type === "sale_tracker" && c.key) {
-                    trackerKeysToKeep.push(c.key);
-                  }
-                });
-              }
-              const preservedData: any = {};
-              for (const k of trackerKeysToKeep) {
-                if (k in existingTr) preservedData[k] = existingTr[k];
-              }
-              return { ...sr, ...preservedData };
-            } else {
-              return { ...sr, total_qty: "0" };
-            }
-          });
-          
-          newState.pageRows[trackerName] = repairedTrackerRows;
-        }
-      }
-    }
 
     sendProgress(70, 'Preparing pages and rows...');
 
@@ -2501,7 +2415,6 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
 
     if (isUsingMongoDB) {
       if (isSinglePage || isBundle) {
-        const pagesToUpdate = isBundle ? newState.pages : [payload.name];
         for (let i = 0; i < pagesToUpdate.length; i++) {
           const pageName = pagesToUpdate[i];
           const pct = 70 + Math.floor((i / pagesToUpdate.length) * 25);
@@ -2581,7 +2494,6 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
     } else {
       const db = await getLocalDB();
       if (isSinglePage || isBundle) {
-        const pagesToUpdate = isBundle ? newState.pages : [payload.name];
         for (let i = 0; i < pagesToUpdate.length; i++) {
           const pageName = pagesToUpdate[i];
           const pct = 70 + Math.floor((i / pagesToUpdate.length) * 25);
@@ -2662,6 +2574,12 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
 
 // Vite Middleware for Development
 async function startServer() {
+  // Global error handler for API routes to prevent HTML error pages (e.g., from multer limits)
+  app.use('/api', (err: any, req: any, res: any, next: any) => {
+    console.error('API Error:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
