@@ -97,7 +97,14 @@ export function useImportExport(deps: {
     try {
       setImportProgress({ message: "Re-syncing UI state...", percent: 99 , currentFile: null });
       const stateRes = await fetch("/api/state");
-      const stateData = await stateRes.json();
+      if (!stateRes.ok) throw new Error("Server returned " + stateRes.status);
+      const stateText = await stateRes.text();
+      let stateData;
+      try {
+        stateData = JSON.parse(stateText);
+      } catch (e) {
+        throw new Error("Invalid JSON response for state");
+      }
       if (!stateData || stateData.error) throw new Error("Failed to fetch state");
 
       const newPages = stateData.pages || [];
@@ -106,10 +113,17 @@ export function useImportExport(deps: {
 
       for (const pageName of newPages) {
         const pageRes = await fetch(`/api/pages/${encodeURIComponent(pageName)}`);
-        const pageData = await pageRes.json();
-        if (pageData && !pageData.error) {
-          newConfigs[pageName] = pageData.config;
-          newRows[pageName] = pageData.rows;
+        if (pageRes.ok) {
+          const pageText = await pageRes.text();
+          try {
+            const pageData = JSON.parse(pageText);
+            if (pageData && !pageData.error) {
+              newConfigs[pageName] = pageData.config;
+              newRows[pageName] = pageData.rows;
+            }
+          } catch (e) {
+            console.error("Invalid JSON response for page " + pageName);
+          }
         }
       }
 

@@ -182,7 +182,15 @@ function AppContent() {
 
   useEffect(() => {
     fetch("/api/state")
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          throw new Error("Invalid JSON response");
+        }
+      })
       .then((data) => {
         if (data && !data.error) {
           const urlParams = new URLSearchParams(window.location.search);
