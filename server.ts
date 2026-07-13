@@ -16,7 +16,7 @@ import multer from 'multer';
 const upload = multer({ dest: 'temp_uploads/' });
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = 3000;
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -879,7 +879,7 @@ app.post('/api/admin/migrate-images', async (_req, res) => {
   }
 });
 
-app.get('/api/export/page/:name', async (req, res) => {
+app.get('/api/export/page/:name(*)', async (req, res) => {
   try {
     const { name } = req.params;
     let pageData: any = null;
@@ -1216,7 +1216,7 @@ app.get('/api/export-zip-verified', async (_req, res) => {
   }
 });
 
-app.get('/api/export-zip/page/:name', async (req, res) => {
+app.get('/api/export-zip/page/:name(*)', async (req, res) => {
   try {
     const { name } = req.params;
     let pageData: any = null;
@@ -1404,7 +1404,7 @@ app.get('/api/local-image-size', async (req, res) => {
   }
 });
 
-app.get('/api/pages/:name', async (req, res) => {
+app.get('/api/pages/:name(*)', async (req, res) => {
   try {
     const { name } = req.params;
     if (isUsingMongoDB) {
@@ -1452,7 +1452,7 @@ app.post('/api/pages', async (req, res) => {
   }
 });
 
-app.put('/api/pages/:name/rename', async (req, res) => {
+app.put('/api/pages/:name(*)/rename', async (req, res) => {
   try {
     const { name } = req.params;
     const { newName } = req.body;
@@ -1485,7 +1485,7 @@ app.put('/api/pages/:name/rename', async (req, res) => {
   }
 });
 
-app.delete('/api/pages/:name', async (req, res) => {
+app.delete('/api/pages/:name(*)', async (req, res) => {
   try {
     const { name } = req.params;
     let deletedRows: any[] = [];
@@ -1614,7 +1614,7 @@ app.post('/api/pages/update-config', async (req, res) => {
   }
 });
 
-app.put('/api/pageConfigs/:name', async (req, res) => {
+app.put('/api/pageConfigs/:name(*)', async (req, res) => {
   try {
     const { name } = req.params;
     const { config } = req.body;
@@ -1633,7 +1633,7 @@ app.put('/api/pageConfigs/:name', async (req, res) => {
   }
 });
 
-app.put('/api/pageRows/:name', async (req, res) => {
+app.put('/api/pageRows/:name(*)', async (req, res) => {
   try {
     const { name } = req.params;
     const { rows } = req.body;
@@ -1749,7 +1749,7 @@ app.put('/api/pageRows/:name', async (req, res) => {
   }
 });
 
-app.patch('/api/pageRows/:name/:rowId', async (req, res) => {
+app.patch('/api/pageRows/:name(*)/:rowId', async (req, res) => {
   try {
     const { name, rowId } = req.params;
     const { updates } = req.body;
@@ -1793,7 +1793,7 @@ app.patch('/api/pageRows/:name/:rowId', async (req, res) => {
   }
 });
 
-app.patch('/api/pageRows/:name/bulk', async (req, res) => {
+app.patch('/api/pageRows/:name(*)/bulk', async (req, res) => {
   try {
     const { name } = req.params;
     const { order, updates } = req.body;
@@ -1909,7 +1909,7 @@ app.patch('/api/pageRows/:name/bulk', async (req, res) => {
   }
 });
 
-app.post('/api/pageRows/:name/append', async (req, res) => {
+app.post('/api/pageRows/:name(*)/append', async (req, res) => {
   try {
     const { name } = req.params;
     const { rows } = req.body;
@@ -1975,7 +1975,7 @@ app.post('/api/pageRows/:name/append', async (req, res) => {
   }
 });
 
-app.delete('/api/pageRows/:name/:rowId', async (req, res) => {
+app.delete('/api/pageRows/:name(*)/:rowId', async (req, res) => {
   try {
     const { name, rowId } = req.params;
     let deletedRowData = null;
