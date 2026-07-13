@@ -36,6 +36,7 @@ import { RenamePageModal } from "./components/RenamePageModal";
 import { CreateColumnModal } from "./components/CreateColumnModal";
 import { EditColumnModal } from "./components/EditColumnModal";
 import { ConfirmationModal } from "./components/ConfirmationModal";
+import { DeletePageModal } from "./components/DeletePageModal";
 import { ImagePreviewModal } from "./components/ImagePreviewModal";
 import { ReorderPagesModal } from "./components/ReorderPagesModal";
 import { ReorderSearchBarsModal } from "./components/ReorderSearchBarsModal";
@@ -443,6 +444,7 @@ function AppContent() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editingPageName, setEditingPageName] = useState<string | null>(null);
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
+  const [isDeletePageModalOpen, setIsDeletePageModalOpen] = useState(false);
   const [bulkApplyContext, setBulkApplyContext] = useState<{pageName: string, colKey: string, sourceName: string, sourceColor: string} | null>(null);
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
@@ -2154,6 +2156,7 @@ function AppContent() {
         localSettings={localSettings}
         handleUpdateLocalSetting={handleUpdateLocalSetting}
         handleImportData={handleImportData}
+        setIsDeletePageModalOpen={setIsDeletePageModalOpen}
       />
 
       <PageTabsBar pages={state.pages} activePage={state.activePage} setState={setState} />
@@ -2415,6 +2418,15 @@ function AppContent() {
       />
 
       {/* ConfirmationModal is now global */}
+
+      
+      <DeletePageModal
+        isOpen={isDeletePageModalOpen}
+        onClose={() => setIsDeletePageModalOpen(false)}
+        state={state}
+        setState={setState}
+        setConfirmationModal={setConfirmationModal}
+      />
 
       <ConfirmationModal
         isOpen={!!confirmationModal?.isOpen}
