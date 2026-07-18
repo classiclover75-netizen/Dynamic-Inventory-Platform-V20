@@ -218,7 +218,7 @@ export const TableView = ({
           <table
             className="border-separate border-spacing-0 table-fixed w-max max-w-none text-[14px] font-normal"
             style={{
-              width: `${currentTable.getTotalSize() + (!isSecondary && config.rowReorderEnabled ? 60 : 0) + 50}px`,
+              width: `${currentTable.getTotalSize() + (!isSecondary && config.rowReorderEnabled ? 40 : 0) + 50}px`,
             }}
             onMouseOver={handleTableMouseOver}
             onMouseOut={handleTableMouseOut}
@@ -229,25 +229,11 @@ export const TableView = ({
                   <th
                     className={`sticky top-0 z-20 text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] bg-[#f3f3f3] data-[hovered-col=true]:bg-[#fce7f3]`}
                     style={{
-                      width: "60px",
-                      minWidth: "60px",
-                      maxWidth: "60px",
+                      width: "40px",
+                      minWidth: "40px",
+                      maxWidth: "40px",
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      className="cursor-pointer"
-                      checked={
-                        rows.length > 0 && selectedRowIds.size === rows.length
-                      }
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedRowIds(new Set(rows.map((r) => r.id)));
-                        } else {
-                          setSelectedRowIds(new Set());
-                        }
-                      }}
-                    />
                   </th>
                 )}
                 {visibleColumns.map((col, i) => {
@@ -379,12 +365,12 @@ export const TableView = ({
                                   <td
                                     className={`text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 data-[hovered-exact=true]:shadow-inner`}
                                     style={{
-                                      width: "60px",
-                                      minWidth: "60px",
-                                      maxWidth: "60px",
+                                      width: "40px",
+                                      minWidth: "40px",
+                                      maxWidth: "40px",
                                     }}
                                   >
-                                    <div className="flex items-center justify-center gap-1.5 relative">
+                                    <div className="flex items-center justify-center relative">
                                       <RowPositionEditor
                                         currentIndex={rowIndex}
                                         totalRows={originalRows?.length || rows.length}
@@ -395,20 +381,6 @@ export const TableView = ({
                                             source: { index: src },
                                             draggableId: id,
                                           });
-                                        }}
-                                      />
-                                      <input
-                                        type="checkbox"
-                                        className="cursor-pointer flex-shrink-0"
-                                        checked={selectedRowIds.has(row.id)}
-                                        onChange={(e) => {
-                                          const newSet = new Set(
-                                            selectedRowIds,
-                                          );
-                                          if (e.target.checked)
-                                            newSet.add(row.id);
-                                          else newSet.delete(row.id);
-                                          setSelectedRowIds(newSet);
                                         }}
                                       />
                                     </div>
