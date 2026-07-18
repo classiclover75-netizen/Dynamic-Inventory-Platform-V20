@@ -22,6 +22,14 @@ export const TableView = ({
   handleTableMouseOver, handleTableMouseOut,
   getImageUrl, toggleModal,
 }: any) => {
+  const originalRowIndexMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    if (originalRows && Array.isArray(originalRows)) {
+      originalRows.forEach((r, idx) => map.set(String(r.id), idx));
+    }
+    return map;
+  }, [originalRows]);
+
   const highlightText = (
     text: any,
     tokens: string[],
@@ -373,7 +381,7 @@ export const TableView = ({
                                   >
                                     <div className="flex items-center justify-center relative">
                                       <RowPositionEditor
-                                        currentIndex={rowIndex}
+                                        currentIndex={originalRowIndexMap.has(String(row.id)) ? originalRowIndexMap.get(String(row.id))! : rowIndex}
                                         totalRows={originalRows?.length || rows.length}
                                         rowId={row.id}
                                         onPositionChange={(src, dest, id) => {
