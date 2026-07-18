@@ -490,7 +490,7 @@ function AppContent() {
   const handleToggleMagicPasteColumn = (colKey: string) => {
     setState((prev) => {
       const pageConfig = prev.pageConfigs[prev.activePage];
-      if (!pageConfig) return prev;
+      if (!pageConfig || !pageConfig.columns) return prev;
 
       const updatedColumns = pageConfig.columns.map((col) =>
         col.key === colKey
@@ -592,7 +592,8 @@ function AppContent() {
     setReturnToImagePreview(false);
   }, []);
 
-  const activeConfig = state.pageConfigs[state.activePage] || initialConfig;
+  const rawActiveConfig = state.pageConfigs[state.activePage] || initialConfig;
+  const activeConfig = { ...rawActiveConfig, columns: rawActiveConfig.columns || [] };
   const activeRows = state.pageRows[state.activePage] || [];
 
 
@@ -854,7 +855,7 @@ function AppContent() {
 
     setState(prev => {
       const pageConfig = prev.pageConfigs[pageToUpdate];
-      if (!pageConfig) return prev;
+      if (!pageConfig || !pageConfig.columns) return prev;
 
       const colIndex = pageConfig.columns.findIndex(c => c.key === colId);
       if (colIndex === -1) return prev;
@@ -876,7 +877,7 @@ function AppContent() {
 
     try {
       const currentConfig = state.pageConfigs[pageToUpdate];
-      if (!currentConfig) return;
+      if (!currentConfig || !currentConfig.columns) return;
       
       const colIndex = currentConfig.columns.findIndex(c => c.key === colId);
       if(colIndex === -1) return;
@@ -940,7 +941,7 @@ function AppContent() {
   };
 
   const handleSaveEditedColumn = async (updatedCol: Column) => {
-    const currentCols = state.pageConfigs[state.activePage].columns;
+    const currentCols = state.pageConfigs[state.activePage]?.columns || [];
     const newCols = currentCols.map((c) =>
       c.key === updatedCol.key ? updatedCol : c,
     );
@@ -972,7 +973,7 @@ function AppContent() {
 
   const handleUpdateColumnPreview = (updatedCol: Column) => {
     setState((prev) => {
-      const currentCols = prev.pageConfigs[state.activePage].columns;
+      const currentCols = prev.pageConfigs[state.activePage]?.columns || [];
       const newCols = currentCols.map((c) =>
         c.key === updatedCol.key ? updatedCol : c,
       );
@@ -2267,9 +2268,9 @@ function AppContent() {
         }}
         columns={
           previewContext
-            ? state.pageConfigs[previewContext.pageName].columns
+            ? state.pageConfigs[previewContext.pageName]?.columns || []
             : editingPageName
-              ? state.pageConfigs[editingPageName].columns
+              ? state.pageConfigs[editingPageName]?.columns || []
               : activeConfig.columns
         }
         editingRow={
@@ -2463,7 +2464,7 @@ function AppContent() {
         imageColKey={previewContext?.imageKey || ""}
         columns={
           previewContext
-            ? state.pageConfigs[previewContext.pageName].columns
+            ? state.pageConfigs[previewContext.pageName]?.columns || []
             : activeConfig.columns
         }
         rowIndex={
@@ -2582,7 +2583,7 @@ function AppContent() {
           setExcelImportData((prev) => ({ ...prev, headers }))
         }
         onImport={async (newRows, newColumns) => {
-          const currentCols = state.pageConfigs[state.activePage].columns;
+          const currentCols = state.pageConfigs[state.activePage]?.columns || [];
           const updatedCols = [...currentCols, ...newColumns];
           const updatedConfig = {
             ...state.pageConfigs[state.activePage],

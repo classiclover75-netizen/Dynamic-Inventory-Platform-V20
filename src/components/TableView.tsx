@@ -4,6 +4,7 @@ import { Lock, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { CopyPopupNotification } from "./CopyPopupNotification";
 import { decodeHtmlEntities, parseMultiSource } from "../lib/appUtils";
+import { RowPositionEditor } from "./RowPositionEditor";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
 
 export const TableView = ({
@@ -409,16 +410,28 @@ export const TableView = ({
                                       maxWidth: "60px",
                                     }}
                                   >
-                                    <div className="flex items-center justify-center gap-2">
+                                    <div className="flex items-center justify-center gap-1.5 relative">
                                       <div
                                         {...provided.dragHandleProps}
-                                        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700"
+                                        className={`cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 flex-shrink-0 ${draggableProps.isDragDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
                                       >
                                         <GripVertical size={16} />
                                       </div>
+                                      <RowPositionEditor
+                                        currentIndex={rowIndex}
+                                        totalRows={originalRows?.length || rows.length}
+                                        rowId={row.id}
+                                        onPositionChange={(src, dest, id) => {
+                                          handleDragEnd({
+                                            destination: { index: dest },
+                                            source: { index: src },
+                                            draggableId: id,
+                                          });
+                                        }}
+                                      />
                                       <input
                                         type="checkbox"
-                                        className="cursor-pointer"
+                                        className="cursor-pointer flex-shrink-0"
                                         checked={selectedRowIds.has(row.id)}
                                         onChange={(e) => {
                                           const newSet = new Set(
