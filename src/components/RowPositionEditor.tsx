@@ -56,9 +56,8 @@ export function RowPositionEditor({
     return (
       <input
         ref={inputRef}
-        type="number"
-        min={1}
-        max={totalRows}
+        type="text"
+        inputMode="numeric"
         className="w-10 text-xs border border-blue-400 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500 absolute bg-white z-20 shadow-sm"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}

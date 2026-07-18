@@ -353,6 +353,7 @@ export const TableView = ({
                         );
                         return (
                               <tr
+                                key={row.id}
                                 className={`${!isSecondary && selectedRowIds.has(row.id) ? "bg-[#e8f0fe]" : ""} ${isRowEditing ? "relative z-[60]" : ""}`}
                                 style={{
                                   ...(isRowEditing
