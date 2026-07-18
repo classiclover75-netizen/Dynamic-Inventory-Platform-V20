@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Pencil } from "lucide-react";
 
 interface RowPositionEditorProps {
   currentIndex: number;
@@ -70,15 +69,15 @@ export function RowPositionEditor({
   }
 
   return (
-    <button
+    <div
       onClick={() => {
         setInputValue(String(currentIndex + 1));
         setIsEditing(true);
       }}
-      className="text-gray-300 hover:text-gray-600 focus:outline-none transition-colors"
+      className="text-gray-400 hover:text-gray-800 hover:bg-gray-100 px-1 py-0.5 rounded cursor-pointer text-xs font-medium transition-colors select-none min-w-[20px] text-center"
       title="Jump to position"
     >
-      <Pencil size={12} />
-    </button>
+      {currentIndex + 1}
+    </div>
   );
 }
