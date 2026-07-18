@@ -30,6 +30,7 @@ export interface Column {
   width?: number;
   resizeLocked?: boolean;
   archived?: boolean;
+  options?: string[];
 }
 
 export interface PageConfig {

@@ -3,6 +3,7 @@ import { Button, Input, Select, Modal } from './ui';
 import { ColumnType, Column } from '../types';
 import { useToast } from './ToastProvider';
 import { Trash2, Plus } from 'lucide-react';
+import { DropdownOptionsEditor } from './DropdownOptionsEditor';
 
 export const CreateColumnModal = React.memo(({
   isOpen,
@@ -17,12 +18,13 @@ export const CreateColumnModal = React.memo(({
   onSave: (columns: Column[]) => void;
   existingColumns: Column[];
 }) => {
-  const [columns, setColumns] = useState<{ name: string; type: ColumnType }[]>([{ name: '', type: 'text' }]);
+  const [columns, setColumns] = useState<{ name: string; type: ColumnType; options?: string[] }[]>([{ name: '', type: 'text', options: [] }]);
   const { toast } = useToast();
 
-  const handleAddColumn = () => setColumns([...columns, { name: '', type: 'text' }]);
+  const handleAddColumn = () => setColumns([...columns, { name: '', type: 'text', options: [] }]);
   const handleRemoveColumn = (index: number) => setColumns(columns.filter((_, i) => i !== index));
-  const handleUpdateColumn = (index: number, field: 'name' | 'type', value: string) => {
+
+  const handleUpdateColumn = (index: number, field: 'name' | 'type' | 'options', value: any) => {
     const newCols = [...columns];
     newCols[index] = { ...newCols[index], [field]: value };
     setColumns(newCols);
@@ -34,25 +36,45 @@ export const CreateColumnModal = React.memo(({
 
     const validCols = columns.filter(c => c.name.trim());
     const lowerNames = validCols.map(c => c.name.toLowerCase());
+
     if (new Set(lowerNames).size !== lowerNames.length) return toast('Duplicate column names are not allowed');
 
     const existingNames = new Set(existingColumns.map(c => c.name.toLowerCase()));
     const conflict = validCols.find(c => existingNames.has(c.name.toLowerCase()));
+
     if (conflict) return toast(`Column "${conflict.name}" already exists on this page`);
 
-    const finalCols: Column[] = validCols.map((c, i) => ({
-      key: `col_${Date.now()}_${i}_${Math.floor(Math.random() * 1000)}`,
-      name: c.name.trim(),
-      type: c.type,
-      locked: false,
-      movable: true,
-      width: 150,
-      copyPerItem: c.type === 'text_with_copy_button',
-      multiInput: c.type === 'text_with_copy_button'
-    }));
+    const finalCols: Column[] = validCols.map((c, i) => {
+      let finalOptions: string[] | undefined = undefined;
+      
+      if (c.type === 'dropdown' || c.type === 'multi_select') {
+        const cleaned: string[] = [];
+        const seen = new Set<string>();
+        (c.options || []).forEach(o => {
+          const trimmed = o.trim();
+          if (trimmed && !seen.has(trimmed)) {
+            cleaned.push(trimmed);
+            seen.add(trimmed);
+          }
+        });
+        finalOptions = cleaned;
+      }
+
+      return {
+        key: `col_${Date.now()}_${i}_${Math.floor(Math.random() * 1000)}`,
+        name: c.name.trim(),
+        type: c.type,
+        locked: false,
+        movable: true,
+        width: 150,
+        copyPerItem: c.type === 'text_with_copy_button',
+        multiInput: c.type === 'text_with_copy_button',
+        options: finalOptions
+      };
+    });
 
     onSave(finalCols);
-    setColumns([{ name: '', type: 'text' }]);
+    setColumns([{ name: '', type: 'text', options: [] }]);
   };
 
   return (
@@ -60,23 +82,30 @@ export const CreateColumnModal = React.memo(({
       <div className="text-xs font-bold text-[#607d8b] mb-2">Define columns (add multiple if needed):</div>
       <div className="space-y-2 mb-3">
         {columns.map((col, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center border border-[#e1e7ea] rounded-md p-2 bg-[#fcfdfe]">
-            <Input value={col.name} onChange={e => handleUpdateColumn(i, 'name', e.target.value)} placeholder="Column name" />
-            <Select value={col.type} onChange={e => handleUpdateColumn(i, 'type', e.target.value as ColumnType)}>
-              <option value="text">Text</option>
-              <option value="number">Number</option>
-              <option value="date">Date</option>
-              <option value="dropdown">Dropdown</option>
-              <option value="multi_select">Multi-select</option>
-              <option value="checkbox">Checkbox</option>
-              <option value="image">Image</option>
-              <option value="file">File</option>
-              <option value="formula">Formula</option>
-              <option value="relation">Relation/Lookup</option>
-              <option value="multi_text">Multi Text</option>
-              <option value="text_with_copy_button">Text With Copy Button</option>
-            </Select>
-            <Button variant="red" onClick={() => handleRemoveColumn(i)}><Trash2 size={14} /> Delete</Button>
+          <div key={i} className="border border-[#e1e7ea] rounded-md p-2 bg-[#fcfdfe]">
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+              <Input value={col.name} onChange={e => handleUpdateColumn(i, 'name', e.target.value)} placeholder="Column name" />
+              <Select value={col.type} onChange={e => handleUpdateColumn(i, 'type', e.target.value as ColumnType)}>
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+                <option value="dropdown">Dropdown</option>
+                <option value="multi_select">Multi-select</option>
+                <option value="checkbox">Checkbox</option>
+                <option value="image">Image</option>
+                <option value="file">File</option>
+                <option value="formula">Formula</option>
+                <option value="relation">Relation/Lookup</option>
+                <option value="multi_text">Multi Text</option>
+                <option value="text_with_copy_button">Text With Copy Button</option>
+              </Select>
+              <Button variant="red" onClick={() => handleRemoveColumn(i)}><Trash2 size={14} /> Delete</Button>
+            </div>
+            {(col.type === 'dropdown' || col.type === 'multi_select') && (
+              <div className="mt-2 pl-1 pr-1">
+                <DropdownOptionsEditor options={col.options || []} onChange={opts => handleUpdateColumn(i, 'options', opts)} />
+              </div>
+            )}
           </div>
         ))}
       </div>

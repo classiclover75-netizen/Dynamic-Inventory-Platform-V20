@@ -3,6 +3,8 @@ import { Button, Input, Select, Modal } from './ui';
 import { Column, ColumnType } from '../types';
 import { useToast } from './ToastProvider';
 
+import { DropdownOptionsEditor } from './DropdownOptionsEditor';
+
 export const EditColumnModal = React.memo(({
   isOpen,
   onClose,
@@ -27,6 +29,7 @@ export const EditColumnModal = React.memo(({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [sortPriority, setSortPriority] = useState<number>(1);
   const [locked, setLocked] = useState<boolean>(false);
+  const [options, setOptions] = useState<string[]>([]);
   const [priorityError, setPriorityError] = useState('');
   const { toast } = useToast();
 
@@ -41,6 +44,7 @@ export const EditColumnModal = React.memo(({
       setSortDirection(column.sortDirection || 'asc');
       setSortPriority(column.sortPriority || 1);
       setLocked(column.locked || false);
+      setOptions(column.options || []);
     }
   }, [column, isOpen]);
 
@@ -77,6 +81,18 @@ export const EditColumnModal = React.memo(({
 
   const getUpdatedColumn = (overrides: Partial<Column> = {}): Column => {
     if (!column) return {} as Column;
+    
+    // Clean options before returning
+    const cleanedOptions: string[] = [];
+    const seen = new Set<string>();
+    options.forEach(o => {
+      const trimmed = o.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        cleanedOptions.push(trimmed);
+        seen.add(trimmed);
+      }
+    });
+
     return {
       ...column,
       name: name.trim() || column.name,
@@ -88,6 +104,7 @@ export const EditColumnModal = React.memo(({
       locked,
       copyPerItem: type === 'text_with_copy_button',
       multiInput: type === 'text_with_copy_button',
+      options: (type === 'dropdown' || type === 'multi_select') ? cleanedOptions : undefined,
       ...overrides
     };
   };
@@ -154,7 +171,12 @@ export const EditColumnModal = React.memo(({
           <option value="multi_text">Multi Text</option>
           <option value="text_with_copy_button">Text With Copy Button</option>
         </Select>
+        
+        {(type === 'dropdown' || type === 'multi_select') && (
+          <DropdownOptionsEditor options={options} onChange={setOptions} />
+        )}
       </div>
+
       <div className="mb-3">
         <label className="block text-xs font-bold text-gray-600 mb-1">Column Width (px)</label>
         <div className="flex items-center gap-3">
