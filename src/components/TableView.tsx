@@ -1,6 +1,5 @@
 import React from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Lock, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
+import { Lock, ArrowUp, ArrowDown } from "lucide-react";
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
 import { CopyPopupNotification } from "./CopyPopupNotification";
 import { decodeHtmlEntities, parseMultiSource } from "../lib/appUtils";
@@ -216,7 +215,6 @@ export const TableView = ({
           }
         }}
       >
-        <DragDropContext onDragEnd={isSecondary ? () => {} : handleDragEnd}>
           <table
             className="border-separate border-spacing-0 table-fixed w-max max-w-none text-[14px] font-normal"
             style={{
@@ -336,11 +334,7 @@ export const TableView = ({
                 ></th>
               </tr>
             </thead>
-            <Droppable
-              droppableId={`droppable-tbody-${isSecondary ? "secondary" : "primary"}`}
-            >
-              {(provided) => (
-                <tbody ref={provided.innerRef} {...provided.droppableProps}>
+                <tbody>
                   {rows.length === 0 ? (
                     <tr>
                       <td
@@ -368,33 +362,13 @@ export const TableView = ({
                         const isActiveRow = !(
                           isGhost && !ghostIds.has(String(row.id))
                         );
-
                         const isRowEditing = inlineEdit?.id?.startsWith(
                           String(row.id) + "-",
                         );
-
-                        const draggableProps: any = {
-                          draggableId: `${isSecondary ? "sec-" : ""}${row.id}`,
-                          index: rowIndex,
-                          isDragDisabled:
-                            isSecondary ||
-                            !config.rowReorderEnabled ||
-                            queries.length > 0,
-                        };
-
                         return (
-                          <Draggable key={row.id} {...draggableProps}>
-                            {(provided: any, snapshot: any) => (
                               <tr
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                className={`${!isSecondary && selectedRowIds.has(row.id) ? "bg-[#e8f0fe]" : ""} ${snapshot.isDragging ? "bg-[#e8f0fe] shadow-xl table" : ""} ${isRowEditing ? "relative z-[60]" : ""}`}
+                                className={`${!isSecondary && selectedRowIds.has(row.id) ? "bg-[#e8f0fe]" : ""} ${isRowEditing ? "relative z-[60]" : ""}`}
                                 style={{
-                                  ...provided.draggableProps.style,
-                                  ...(snapshot.isDragging && {
-                                    display: "table",
-                                    tableLayout: "fixed",
-                                  }),
                                   ...(isRowEditing
                                     ? { position: "relative", zIndex: 60 }
                                     : {}),
@@ -411,12 +385,6 @@ export const TableView = ({
                                     }}
                                   >
                                     <div className="flex items-center justify-center gap-1.5 relative">
-                                      <div
-                                        {...provided.dragHandleProps}
-                                        className={`cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 flex-shrink-0 ${draggableProps.isDragDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                                      >
-                                        <GripVertical size={16} />
-                                      </div>
                                       <RowPositionEditor
                                         currentIndex={rowIndex}
                                         totalRows={originalRows?.length || rows.length}
@@ -1073,8 +1041,6 @@ export const TableView = ({
                                 })}
                                 <td className="border-none bg-transparent pointer-events-none" style={{ width: "50px", minWidth: "50px", maxWidth: "50px" }}></td>
                               </tr>
-                            )}
-                          </Draggable>
                         );
                       })}
                       {paddingBottom > 0 && (
@@ -1087,12 +1053,8 @@ export const TableView = ({
                       )}
                     </>
                   )}
-                  {provided.placeholder}
                 </tbody>
-              )}
-            </Droppable>
           </table>
-        </DragDropContext>
       </div>
     );
 };

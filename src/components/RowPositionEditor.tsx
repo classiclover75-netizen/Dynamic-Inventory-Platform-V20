@@ -63,6 +63,7 @@ export function RowPositionEditor({
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
+        onWheel={(e) => e.currentTarget.blur()}
         onBlur={handleConfirm}
       />
     );
