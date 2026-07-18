@@ -218,7 +218,15 @@ export function useImportExport(deps: {
       } else {
         // Handle JSON
         const text = await file.text();
-        const parsed = JSON.parse(text);
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (e) {
+          toast("Invalid file format. Please upload a valid JSON file.");
+          setIsImporting(false);
+          setImportProgress({ message: "Processing...", percent: null , currentFile: null });
+          return;
+        }
 
         const response = await fetch("/api/state", {
           method: "PUT",
@@ -295,7 +303,14 @@ export function useImportExport(deps: {
       } else {
         // Handle JSON
         const text = await file.text();
-        const parsed = JSON.parse(text);
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (e) {
+          toast("Invalid file format. Please upload a valid JSON file.");
+          setIsImporting(false);
+          return;
+        }
 
         const response = await fetch("/api/state", {
           method: "PUT",
