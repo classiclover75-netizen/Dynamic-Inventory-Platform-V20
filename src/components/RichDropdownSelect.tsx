@@ -54,7 +54,7 @@ export const RichDropdownSelect: React.FC<RichDropdownSelectProps> = ({
       {isOpen && (
         <div className="absolute top-full left-0 w-full border border-[#cfd8dc] rounded mt-1 bg-white z-[9999] shadow-[0_4px_12px_rgba(0,0,0,0.15)] max-h-60 overflow-y-auto min-w-[200px]">
           <div
-            className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 text-[#D4AF37] italic"
+            className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 text-[#B8860B] font-bold text-[15px] italic"
             onClick={() => {
               onChange("");
               setIsOpen(false);
