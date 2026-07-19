@@ -760,7 +760,7 @@ export const AddRowModal = React.memo(
                             };
                             return (
                               <div className="border border-purple-200 bg-purple-50 p-2 rounded flex flex-col h-full min-h-[100px]">
-                                <div className="flex flex-col gap-2 mb-2 max-h-[200px] overflow-y-auto pr-1">
+                                <div className="flex flex-col gap-2 mb-2">
                                   {currentSources.map(
                                     (src: any, idx: number) => (
                                       <div
