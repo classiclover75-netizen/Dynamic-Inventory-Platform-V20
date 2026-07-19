@@ -809,22 +809,31 @@ export const AddRowModal = React.memo(
                                                 <div className="shrink-0 text-[14px] font-bold text-gray-900 w-5 flex justify-center">
                                                   {formatSourceNumber(idx)}
                                                 </div>
-                                                <SourceAutocompleteInput
-                                          isExistingSource={true}
-                                          suggestions={sourceSuggestions}
-                                          wrapperClassName="flex-1 min-w-[40px]"
-                                          className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none truncate transition-colors ${src.color}`}
-                                          value={src.source}
-                                          onChange={(val) => {
-                                            const copy = [...currentSources];
-                                            copy[idx].source = val;
-                                            handleUpdateField(
-                                              i,
-                                              col.key,
-                                              JSON.stringify(copy),
-                                            );
-                                          }}
-                                        />
+                                                <div className="flex-1 min-w-[40px]">
+                                                  <textarea
+                                                    ref={(el) => {
+                                                      if (el && !el.style.height) {
+                                                        el.style.height = 'auto';
+                                                        el.style.height = el.scrollHeight + 'px';
+                                                      }
+                                                    }}
+                                                    className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none transition-colors resize-none overflow-hidden break-words whitespace-normal ${src.color}`}
+                                                    value={src.source}
+                                                    rows={1}
+                                                    style={{ fieldSizing: "content", minHeight: "28px" } as any}
+                                                    onChange={(e) => {
+                                                      e.target.style.height = 'auto';
+                                                      e.target.style.height = e.target.scrollHeight + 'px';
+                                                      const copy = [...currentSources];
+                                                      copy[idx].source = e.target.value;
+                                                      handleUpdateField(
+                                                        i,
+                                                        col.key,
+                                                        JSON.stringify(copy),
+                                                      );
+                                                    }}
+                                                  />
+                                                </div>
                                         <Input
                                           type="number"
                                           onFocus={(e) => e.target.select()}
@@ -999,7 +1008,7 @@ export const AddRowModal = React.memo(
                                         className="flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-1 rounded shadow-sm border border-gray-100"
                                       >
                                         <span
-                                          className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-1 min-w-[60px] max-w-[120px] truncate ${ts.color}`}
+                                          className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-1 min-w-[60px] break-words whitespace-normal ${ts.color}`}
                                         >
                                           {ts.source}
                                         </span>
