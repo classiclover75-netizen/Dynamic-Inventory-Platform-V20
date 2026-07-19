@@ -14,6 +14,7 @@ import {
   Layers3,
 } from "lucide-react";
 import { RichDropdownSelect } from "./RichDropdownSelect";
+import { SourceAutocompleteInput, useSourceSuggestions } from "./SourceAutocompleteInput";
 
 const RichTextEditor = ({
   value,
@@ -238,6 +239,8 @@ export const AddRowModal = React.memo(
     const [newSourceInputs, setNewSourceInputs] = useState<
       Record<number, { source: string; qty: string }>
     >({});
+    
+    const sourceSuggestions = useSourceSuggestions(allRows || [], blocks);
 
     const editableCols = columns.filter((c) => c.key !== "sr");
 
@@ -764,13 +767,14 @@ export const AddRowModal = React.memo(
                                         key={idx}
                                         className="flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-2 rounded shadow-sm border border-purple-100"
                                       >
-                                        <input
-                                          type="text"
+                                        <SourceAutocompleteInput
+                                          isExistingSource={true}
+                                          suggestions={sourceSuggestions}
                                           className={`text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none flex-1 min-w-[60px] max-w-[120px] truncate transition-colors ${src.color}`}
                                           value={src.source}
-                                          onChange={(e) => {
+                                          onChange={(val) => {
                                             const copy = [...currentSources];
-                                            copy[idx].source = e.target.value;
+                                            copy[idx].source = val;
                                             handleUpdateField(
                                               i,
                                               col.key,
@@ -831,16 +835,17 @@ export const AddRowModal = React.memo(
                                   )}
                                 </div>
                                 <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full box-border pt-2 border-t border-purple-200 mt-auto">
-                                  <Input
+                                  <SourceAutocompleteInput
                                     placeholder="Source"
-                                    className="flex-1 h-8 text-[14px] px-2 min-w-[80px]"
+                                    suggestions={sourceSuggestions}
+                                    className="h-8 text-[14px] px-2"
                                     value={newSourceInput.source}
-                                    onChange={(e) =>
+                                    onChange={(val) =>
                                       setNewSourceInputs({
                                         ...newSourceInputs,
                                         [i]: {
                                           ...newSourceInput,
-                                          source: e.target.value,
+                                          source: val,
                                         },
                                       })
                                     }
