@@ -806,13 +806,13 @@ export const AddRowModal = React.memo(
                                                 <div {...provided.dragHandleProps} className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing px-1 shrink-0">
                                                   <GripVertical className="h-4 w-4" />
                                                 </div>
-                                                <div className="shrink-0 text-xs font-mono text-gray-500 w-5 flex justify-center">
+                                                <div className="shrink-0 text-[14px] font-bold text-gray-900 w-5 flex justify-center">
                                                   {formatSourceNumber(idx)}
                                                 </div>
                                                 <SourceAutocompleteInput
                                           isExistingSource={true}
                                           suggestions={sourceSuggestions}
-                                          wrapperClassName="flex-1 min-w-[60px] max-w-[120px]"
+                                          wrapperClassName="flex-1 min-w-[40px]"
                                           className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none truncate transition-colors ${src.color}`}
                                           value={src.source}
                                           onChange={(val) => {
@@ -831,7 +831,7 @@ export const AddRowModal = React.memo(
                                           onWheel={(e) =>
                                             e.currentTarget.blur()
                                           }
-                                          className="flex-1 min-w-[60px] max-w-[120px] h-8 text-[14px] px-1 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          className="flex-1 min-w-[40px] max-w-[100px] h-8 text-[14px] px-1 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           value={src.qty}
                                           onChange={(e) => {
                                             const copy = [...currentSources];
@@ -844,9 +844,10 @@ export const AddRowModal = React.memo(
                                             );
                                           }}
                                         />
-                                        <button
-                                          type="button"
-                                          className="text-red-500 font-bold px-1 hover:text-red-700 mx-1 flex-shrink-0"
+                                        <div className="flex items-center ml-auto shrink-0 gap-1">
+                                          <button
+                                            type="button"
+                                            className="text-red-500 font-bold px-1 hover:text-red-700 flex-shrink-0"
                                           onClick={() => {
                                             const copy = currentSources.filter(
                                               (_: any, k: number) => k !== idx,
@@ -866,13 +867,14 @@ export const AddRowModal = React.memo(
                                         {onApplySourceToAll && (
                                           <button
                                             type="button"
-                                            className="ml-auto text-blue-600 hover:text-blue-800 flex items-center justify-center p-1 rounded hover:bg-blue-50 transition-colors shrink-0"
+                                            className="text-blue-600 hover:text-blue-800 flex items-center justify-center p-1 rounded hover:bg-blue-50 transition-colors shrink-0"
                                             onClick={() => onApplySourceToAll(activePage, col.key, src.source, src.color)}
                                             title="Apply this source and zero quantity to all rows"
                                           >
                                             <Layers3 className="h-4 w-4" />
                                           </button>
                                         )}
+                                        </div>
                                       </div>
                                             )}
                                           </Draggable>

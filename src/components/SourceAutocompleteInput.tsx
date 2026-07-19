@@ -199,7 +199,7 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
                 setShowSuggestions(false);
               }}
             >
-              <span className="font-mono text-[11px] mr-1 opacity-50">{formatSourceNumber(idx)}</span>{s.source}
+              <span className="mr-1">{formatSourceNumber(idx)}</span>{s.source}
             </div>
           ))}
         </div>
