@@ -737,7 +737,7 @@ export const AddRowModal = React.memo(
                       columns.findIndex((c) => c.key === col.key) + 1;
 
                     return (
-                      <div key={col.key} className={`flex flex-col relative ${isReadOnly ? "opacity-60" : ""}`}>
+                      <div key={col.key} className={`flex flex-col relative ${isReadOnly ? "opacity-60" : ""} ${(col.key === "total_qty" || col.type === "sale_tracker") ? "sm:col-span-2" : ""}`}>
                         {isReadOnly && (
                           <div
                             className="absolute inset-0 z-10 cursor-not-allowed"
@@ -809,7 +809,7 @@ export const AddRowModal = React.memo(
                                                 <div className="shrink-0 text-[14px] font-bold text-gray-900 w-5 flex justify-center">
                                                   {formatSourceNumber(idx)}
                                                 </div>
-                                                <div className="flex-1 min-w-[40px]">
+                                                <div className="flex-[2] min-w-[100px]">
                                                   <textarea
                                                     ref={(el) => {
                                                       if (el && !el.style.height) {
@@ -840,7 +840,7 @@ export const AddRowModal = React.memo(
                                           onWheel={(e) =>
                                             e.currentTarget.blur()
                                           }
-                                          className="flex-1 min-w-[40px] max-w-[100px] h-8 text-[14px] px-1 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          className="w-[70px] shrink-0 h-8 text-[14px] px-1 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           value={src.qty}
                                           onChange={(e) => {
                                             const copy = [...currentSources];
@@ -899,7 +899,7 @@ export const AddRowModal = React.memo(
                                     suggestions={sourceSuggestions}
                                     dropdownPosition="top"
                                     className="h-8 text-[14px] px-2 w-full"
-                                    wrapperClassName="flex-1 min-w-[80px]"
+                                    wrapperClassName="flex-[2] min-w-[100px]"
                                     value={newSourceInput.source}
                                     onChange={(val) =>
                                       setNewSourceInputs({
@@ -915,7 +915,7 @@ export const AddRowModal = React.memo(
                                     type="number"
                                     onWheel={(e) => e.currentTarget.blur()}
                                     placeholder="Qty"
-                                    className="flex-1 min-w-[60px] max-w-[100px] h-8 text-[14px] px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    className="w-[70px] shrink-0 h-8 text-[14px] px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     value={newSourceInput.qty}
                                     onChange={(e) =>
                                       setNewSourceInputs({
@@ -1008,7 +1008,7 @@ export const AddRowModal = React.memo(
                                         className="flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-1 rounded shadow-sm border border-gray-100"
                                       >
                                         <span
-                                          className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-1 min-w-[60px] break-words whitespace-normal ${ts.color}`}
+                                          className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-[2] min-w-[100px] break-words whitespace-normal ${ts.color}`}
                                         >
                                           {ts.source}
                                         </span>
@@ -1018,7 +1018,7 @@ export const AddRowModal = React.memo(
                                           onWheel={(e) =>
                                             e.currentTarget.blur()
                                           }
-                                          className="flex-1 min-w-[60px] max-w-[120px] h-8 text-[14px] px-1 text-right text-blue-800 font-bold ml-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          className="w-[70px] shrink-0 h-8 text-[14px] px-1 text-right text-blue-800 font-bold ml-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           value={saleQty}
                                           placeholder="Qty"
                                           onChange={(e) => {
