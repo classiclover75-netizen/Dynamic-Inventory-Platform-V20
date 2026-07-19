@@ -56,7 +56,9 @@ interface SourceAutocompleteInputProps {
   suggestions: SourceSuggestion[];
   placeholder?: string;
   className?: string;
+  wrapperClassName?: string;
   isExistingSource?: boolean;
+  dropdownPosition?: "bottom" | "top";
 }
 
 export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = ({
@@ -65,10 +67,13 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
   suggestions,
   placeholder,
   className,
+  wrapperClassName = "",
   isExistingSource = false,
+  dropdownPosition = "bottom",
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [dropdownRect, setDropdownRect] = useState({ top: 0, left: 0, width: 0, bottom: 0 });
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -82,10 +87,30 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
     };
   }, []);
 
+  useEffect(() => {
+    if (showSuggestions && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setDropdownRect({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        bottom: rect.bottom
+      });
+    }
+  }, [showSuggestions, value]);
+
+  // Close on scroll to avoid detached fixed dropdown
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const handleScroll = () => setShowSuggestions(false);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, [showSuggestions]);
+
   const filtered = (suggestions || []).filter(s => s.source.toLowerCase().includes((value || "").toLowerCase()));
 
   return (
-    <div className={`relative ${isExistingSource ? "" : "flex-1 min-w-[80px]"}`} ref={wrapperRef}>
+    <div className={`${wrapperClassName || (isExistingSource ? "" : "flex-1 min-w-[80px]")}`} ref={wrapperRef}>
       {isExistingSource ? (
         <input
           type="text"
@@ -111,7 +136,16 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
         />
       )}
       {showSuggestions && filtered.length > 0 && (
-        <div className="absolute z-[9999] left-0 mt-1 min-w-[140px] max-h-48 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg p-1.5 flex flex-col gap-1.5">
+        <div 
+          className="fixed z-[99999] min-w-[140px] max-h-48 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg p-1.5 flex flex-col gap-1.5"
+          style={{
+            left: dropdownRect.left,
+            ...(dropdownPosition === "top" 
+              ? { bottom: window.innerHeight - dropdownRect.top + 4 } 
+              : { top: dropdownRect.bottom + 4 }),
+            minWidth: Math.max(dropdownRect.width, 140)
+          }}
+        >
           {filtered.map((s, idx) => (
             <div
               key={idx}

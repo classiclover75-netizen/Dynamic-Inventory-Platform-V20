@@ -760,7 +760,7 @@ export const AddRowModal = React.memo(
                             };
                             return (
                               <div className="border border-purple-200 bg-purple-50 p-2 rounded flex flex-col h-full min-h-[100px]">
-                                <div className="flex flex-col gap-2 mb-2">
+                                <div className="flex flex-col gap-2 mb-2 max-h-[200px] overflow-y-auto pr-1">
                                   {currentSources.map(
                                     (src: any, idx: number) => (
                                       <div
@@ -770,7 +770,8 @@ export const AddRowModal = React.memo(
                                         <SourceAutocompleteInput
                                           isExistingSource={true}
                                           suggestions={sourceSuggestions}
-                                          className={`text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none flex-1 min-w-[60px] max-w-[120px] truncate transition-colors ${src.color}`}
+                                          wrapperClassName="flex-1 min-w-[60px] max-w-[120px]"
+                                          className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none truncate transition-colors ${src.color}`}
                                           value={src.source}
                                           onChange={(val) => {
                                             const copy = [...currentSources];
@@ -838,7 +839,9 @@ export const AddRowModal = React.memo(
                                   <SourceAutocompleteInput
                                     placeholder="Source"
                                     suggestions={sourceSuggestions}
-                                    className="h-8 text-[14px] px-2"
+                                    dropdownPosition="top"
+                                    className="h-8 text-[14px] px-2 w-full"
+                                    wrapperClassName="flex-1 min-w-[80px]"
                                     value={newSourceInput.source}
                                     onChange={(val) =>
                                       setNewSourceInputs({
