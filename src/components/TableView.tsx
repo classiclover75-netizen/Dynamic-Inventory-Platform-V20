@@ -953,8 +953,9 @@ export const TableView = ({
                                       >
                                         {rawVal.map((v, i) => {
                                           const strVal = String(v || "");
+                                          const decodedStrVal = decodeHtmlEntities(strVal);
                                           const hasHtml =
-                                            /<[a-z][\s\S]*>/i.test(strVal);
+                                            /<[a-z][\s\S]*>/i.test(decodedStrVal);
                                           return (
                                             <React.Fragment key={i}>
                                               {hasHtml ? (
@@ -963,7 +964,7 @@ export const TableView = ({
                                                   dangerouslySetInnerHTML={{
                                                     __html: sanitizeHtml(
                                                       highlightHtmlText(
-                                                        strVal,
+                                                        decodedStrVal,
                                                         colTokens,
                                                         isGhost,
                                                       )
@@ -988,10 +989,10 @@ export const TableView = ({
                                   }
 
                                   const strRawVal = String(rawVal || "");
+                                  const decodedRawVal = decodeHtmlEntities(strRawVal);
                                   const hasHtmlRaw = /<[a-z][\s\S]*>/i.test(
-                                    strRawVal,
+                                    decodedRawVal,
                                   );
-
                                   return (
                                     <td
                                       key={col.key}
@@ -1003,7 +1004,7 @@ export const TableView = ({
                                           dangerouslySetInnerHTML={{
                                             __html: sanitizeHtml(
                                               highlightHtmlText(
-                                                strRawVal,
+                                                decodedRawVal,
                                                 colTokens,
                                                 isGhost,
                                               )

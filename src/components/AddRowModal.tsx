@@ -1304,7 +1304,7 @@ export const AddRowModal = React.memo(
                               </div>
                             )}
                           </div>
-                        ) : col.type === "text" ? (
+                        ) : col.type === "text" || col.type === "dropdown" ? (
                           <div
                             className={
                               isReadOnly
