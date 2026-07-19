@@ -199,7 +199,7 @@ export function useImportExport(deps: {
           buffer = lines.pop() || "";
           for (const line of lines) {
             if (!line.trim()) continue;
-            const evt = JSON.parse(line);
+            let evt; try { evt = JSON.parse(line); } catch (e) { if (line.toLowerCase().includes("<!doctype html>")) throw new Error("Server returned HTML page"); throw e; }
             if (evt.type === "progress") {
               setImportProgress({ message: evt.message, percent: evt.percent, currentFile: evt.file || null });
             } else if (evt.type === "done") {
@@ -284,7 +284,7 @@ export function useImportExport(deps: {
           buffer = lines.pop() || "";
           for (const line of lines) {
             if (!line.trim()) continue;
-            const evt = JSON.parse(line);
+            let evt; try { evt = JSON.parse(line); } catch (e) { if (line.toLowerCase().includes("<!doctype html>")) throw new Error("Server returned HTML page"); throw e; }
             if (evt.type === "progress") {
               setImportProgress({ message: evt.message, percent: evt.percent, currentFile: evt.file || null });
             } else if (evt.type === "done") {

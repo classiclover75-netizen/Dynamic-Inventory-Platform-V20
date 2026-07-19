@@ -231,7 +231,7 @@ function AppContent() {
     const fetchPageData = async (pageName: string) => {
       try {
         const res = await fetch(`/api/pages/${encodeURIComponent(pageName)}`);
-        const data = await res.json();
+        let data: any = {}; try { data = await res.json(); } catch(e) {}
         if (data && !data.error) {
           setState((prev) => ({
             ...prev,

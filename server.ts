@@ -2411,7 +2411,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     }
 
-    const payload = JSON.parse(dataEntry.getData().toString('utf8'));
+    let payload; try { payload = JSON.parse(dataEntry.getData().toString('utf8')); } catch(e) { throw new Error("Invalid or corrupted data.json inside zip archive"); }
     sendProgress(65, 'Reading data.json...');
     const { newState, importType, pagesToUpdate, isBundle, isSinglePage } = normalizeBackupPayload(payload);
     console.log(`Import ZIP detected: ${isBundle ? 'Bundle' : isSinglePage ? 'Single Page' : 'Full Backup'}`);

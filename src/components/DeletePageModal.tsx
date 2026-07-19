@@ -49,7 +49,7 @@ export const DeletePageModal = ({
               const res = await fetch(`/api/pages/${encodeURIComponent(pageName)}`, {
                 method: "DELETE",
               });
-              const data = await res.json();
+              let data: any = {}; try { data = await res.json(); } catch(e) {}
               if (!data.success) {
                 toast(`❌ Failed to delete page: ${data.error}`);
                 console.error(data.error);

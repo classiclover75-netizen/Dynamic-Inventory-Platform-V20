@@ -66,7 +66,7 @@ export function useSaveActions(deps: {
 
       if (!response.ok) {
         if (response.status === 400) {
-          const data = await response.json();
+          let data: any = {}; try { data = await response.json(); } catch(e) {}
           if (data.requiresConfirmation) {
             setConfirmationModal({
               isOpen: true,

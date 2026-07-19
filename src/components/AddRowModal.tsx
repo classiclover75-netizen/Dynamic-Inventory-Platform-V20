@@ -1161,7 +1161,7 @@ export const AddRowModal = React.memo(
                                       urlTimeoutsRef.current[key] = setTimeout(async () => {
                                         try {
                                           const res = await fetch(`/api/url-image-size?url=${encodeURIComponent(val)}`);
-                                          const data = await res.json();
+                                          let data: any = {}; try { data = await res.json(); } catch(e) {}
                                           if (currentUrlRef.current[key] !== val) return;
                                           
                                           if (data.ok && typeof data.sizeBytes === 'number') {

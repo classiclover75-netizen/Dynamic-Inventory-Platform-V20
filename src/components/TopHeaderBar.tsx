@@ -157,7 +157,7 @@ export const TopHeaderBar = ({
                         "/api/admin/migrate-images",
                         { method: "POST" },
                       );
-                      const data = await response.json();
+                      let data: any = {}; try { data = await response.json(); } catch(e) {}
                       if (data.success) {
                         toast(`Migrated ${data.count} images successfully!`);
 
