@@ -5,6 +5,7 @@ import { CopyPopupNotification } from "./CopyPopupNotification";
 import { decodeHtmlEntities, parseMultiSource } from "../lib/appUtils";
 import { RowPositionEditor } from "./RowPositionEditor";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
+import { formatSourceNumber } from "../lib/multiSourceHelpers";
 
 export const TableView = ({
   config, rows, queries, isSecondary, showArchived, setBox1Value, setBox2Value, activeAnchor, originalRows, isGhost, ghostIds,
@@ -718,7 +719,7 @@ export const TableView = ({
                                           <div className="flex flex-col gap-1 justify-center w-full min-h-[20px]">
                                             {breakdown.map((b: any, idx: number) => (
                                               <div key={idx} className={`w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 shadow-sm ${b.color}`}>
-                                                <span className="opacity-70 shrink-0 capitalize">{b.source}:</span>
+                                                <span className="opacity-70 shrink-0 capitalize"><span className="font-mono text-[11px] mr-1 opacity-50">{formatSourceNumber(idx)}</span>{b.source}:</span>
                                                 <span className="flex-1 text-right">{b.qty}</span>
                                               </div>
                                             ))}
@@ -777,7 +778,7 @@ export const TableView = ({
                                                   className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.remaining <= (config.minStockAlert ?? 0) ? "bg-[#FF0000] text-white border-[#cc0000] shadow-md" : s.color}`}
                                                 >
                                                   <span className={s.remaining <= (config.minStockAlert ?? 0) ? "text-white font-extrabold opacity-100" : "opacity-70"}>
-                                                    {s.source}:
+                                                    <span className="font-mono text-[11px] mr-1 opacity-50">{formatSourceNumber(idx)}</span>{s.source}:
                                                   </span>{" "}
                                                   <span>{s.remaining}</span>
                                                 </div>
@@ -805,7 +806,7 @@ export const TableView = ({
                                                   className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color}`}
                                                 >
                                                   <span className="opacity-70">
-                                                    {s.source}:
+                                                    <span className="font-mono text-[11px] mr-1 opacity-50">{formatSourceNumber(idx)}</span>{s.source}:
                                                   </span>{" "}
                                                   <span>{s.qty}</span>
                                                 </div>
@@ -849,7 +850,7 @@ export const TableView = ({
                                                   <div key={idx} className="w-full">
                                                     <div className={`group w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${ts.color}`}>
                                                       <div className="flex items-center justify-between w-full">
-                                                        <span className="opacity-70 shrink-0">{ts.source}:</span>
+                                                        <span className="opacity-70 shrink-0"><span className="font-mono text-[11px] mr-1 opacity-50">{formatSourceNumber(idx)}</span>{ts.source}:</span>
                                                         <span className="flex-1 text-right">{saleQty}</span>
                                                       </div>
                                                       <button

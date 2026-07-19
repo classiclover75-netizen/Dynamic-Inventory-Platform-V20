@@ -44,7 +44,7 @@ export const parseMultiSource = (val: any) => {
   try {
     const parsed = typeof val === "string" ? JSON.parse(val) : val;
     const arr = Array.isArray(parsed) ? parsed : [];
-    result = arr.sort((a: any, b: any) => String(a.source || "").localeCompare(String(b.source || "")));
+    result = arr;
   } catch (e) {
     // Fallback for legacy flat numbers
     result = [

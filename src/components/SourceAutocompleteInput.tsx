@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Input } from "./ui";
 import { parseMultiSource } from "../lib/appUtils";
 import { RowData } from "../types";
+import { formatSourceNumber } from "../lib/multiSourceHelpers";
 
 export interface SourceSuggestion {
   source: string;
@@ -198,7 +199,7 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
                 setShowSuggestions(false);
               }}
             >
-              {s.source}
+              <span className="font-mono text-[11px] mr-1 opacity-50">{formatSourceNumber(idx)}</span>{s.source}
             </div>
           ))}
         </div>
