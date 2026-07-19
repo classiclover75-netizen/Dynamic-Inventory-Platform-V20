@@ -152,6 +152,7 @@ export const EditColumnModal = React.memo(({
         <label className="block text-xs font-bold text-gray-600 mb-1">Column Type</label>
         <Select 
           value={type} 
+          disabled={column?.type === 'sale_tracker'}
           onChange={e => {
             const newVal = e.target.value as ColumnType;
             setType(newVal);
@@ -184,18 +185,24 @@ export const EditColumnModal = React.memo(({
             }
           }}
         >
-          <option value="text">Text</option>
-          <option value="number">Number</option>
-          <option value="date">Date</option>
-          <option value="dropdown">Dropdown</option>
-          <option value="multi_select">Multi-select</option>
-          <option value="checkbox">Checkbox</option>
-          <option value="image">Image</option>
-          <option value="file">File</option>
-          <option value="formula">Formula</option>
-          <option value="relation">Relation/Lookup</option>
-          <option value="multi_text">Multi Text</option>
-          <option value="text_with_copy_button">Text With Copy Button</option>
+                    {column?.type === 'sale_tracker' ? (
+            <option value="sale_tracker">Sale Tracker (Locked)</option>
+          ) : (
+            <>
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="date">Date</option>
+              <option value="dropdown">Dropdown</option>
+              <option value="multi_select">Multi-select</option>
+              <option value="checkbox">Checkbox</option>
+              <option value="image">Image</option>
+              <option value="file">File</option>
+              <option value="formula">Formula</option>
+              <option value="relation">Relation/Lookup</option>
+              <option value="multi_text">Multi Text</option>
+              <option value="text_with_copy_button">Text With Copy Button</option>
+            </>
+          )}
         </Select>
         
         {(type === 'dropdown' || type === 'multi_select') && (
@@ -228,63 +235,67 @@ export const EditColumnModal = React.memo(({
         <div className="mt-1 text-[10px] text-gray-400">Min: 50px, Max: 800px</div>
       </div>
 
-      <div className="mb-3 border-t border-gray-100 pt-3">
-        <div className="flex items-center gap-2 mb-2">
-          <input 
-            type="checkbox" 
-            id="sortEnabled"
-            checked={sortEnabled}
-            onChange={(e) => setSortEnabled(e.target.checked)}
-            className="w-4 h-4 accent-[#2b579a]"
-          />
-          <label htmlFor="sortEnabled" className="text-xs font-bold text-gray-600 cursor-pointer">Enable Sorting</label>
-        </div>
-
-        {sortEnabled && (
-          <div className="space-y-3 pl-6">
-            <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sort Direction</label>
-              <Select 
-                value={sortDirection} 
-                onChange={e => setSortDirection(e.target.value as 'asc' | 'desc')}
-              >
-                <option value="asc">A to Z (Ascending)</option>
-                <option value="desc">Z to A (Descending)</option>
-              </Select>
+      {column?.type !== 'sale_tracker' && (
+        <>
+          <div className="mb-3 border-t border-gray-100 pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <input 
+                type="checkbox" 
+                id="sortEnabled"
+                checked={sortEnabled}
+                onChange={(e) => setSortEnabled(e.target.checked)}
+                className="w-4 h-4 accent-[#2b579a]"
+              />
+              <label htmlFor="sortEnabled" className="text-xs font-bold text-gray-600 cursor-pointer">Enable Sorting</label>
             </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sort Priority (1 is highest)</label>
-              <Input 
-                type="number" 
-                min="1"
-                value={sortPriority}
-                onChange={(e) => setSortPriority(parseInt(e.target.value, 10) || 1)}
-                className={priorityError ? "border-red-500" : ""}
+            {sortEnabled && (
+              <div className="space-y-3 pl-6">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sort Direction</label>
+                  <Select 
+                    value={sortDirection} 
+                    onChange={e => setSortDirection(e.target.value as 'asc' | 'desc')}
+                  >
+                    <option value="asc">A to Z (Ascending)</option>
+                    <option value="desc">Z to A (Descending)</option>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sort Priority (1 is highest)</label>
+                  <Input 
+                    type="number" 
+                    min="1"
+                    value={sortPriority}
+                    onChange={(e) => setSortPriority(parseInt(e.target.value, 10) || 1)}
+                    className={priorityError ? "border-red-500" : ""}
+                  />
+                  {priorityError && <p className="text-[10px] text-red-500 font-medium mt-1">{priorityError}</p>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mb-3 border-t border-gray-100 pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <input 
+                type="checkbox" 
+                id="locked"
+                checked={locked}
+                onChange={(e) => {
+                  setLocked(e.target.checked);
+                  if (onUpdate && column) {
+                    onUpdate(getUpdatedColumn({ locked: e.target.checked }));
+                  }
+                }}
+                className="w-4 h-4 accent-[#2b579a]"
               />
-              {priorityError && <p className="text-[10px] text-red-500 font-medium mt-1">{priorityError}</p>}
+              <label htmlFor="locked" className="text-xs font-bold text-gray-600 cursor-pointer">Lock Column (Prevent move/resize)</label>
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="mb-3 border-t border-gray-100 pt-3">
-        <div className="flex items-center gap-2 mb-2">
-          <input 
-            type="checkbox" 
-            id="locked"
-            checked={locked}
-            onChange={(e) => {
-              setLocked(e.target.checked);
-              if (onUpdate && column) {
-                onUpdate(getUpdatedColumn({ locked: e.target.checked }));
-              }
-            }}
-            className="w-4 h-4 accent-[#2b579a]"
-          />
-          <label htmlFor="locked" className="text-xs font-bold text-gray-600 cursor-pointer">Lock Column (Prevent move/resize)</label>
-        </div>
-      </div>
+        </>
+      )}
 
       <div className="mt-4 flex justify-end gap-2 sticky bottom-0 bg-white py-3 border-t border-gray-100 z-10 -mb-1">
         {onBack ? (
