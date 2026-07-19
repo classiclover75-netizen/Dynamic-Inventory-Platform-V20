@@ -839,7 +839,7 @@ export const AddRowModal = React.memo(
                                   <SourceAutocompleteInput
                                     placeholder="Source"
                                     suggestions={sourceSuggestions}
-                                    dropdownPosition="bottom"
+                                    dropdownPosition="top"
                                     className="h-8 text-[14px] px-2 w-full"
                                     wrapperClassName="flex-1 min-w-[80px]"
                                     value={newSourceInput.source}
