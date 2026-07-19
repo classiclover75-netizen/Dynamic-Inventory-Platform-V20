@@ -71,10 +71,9 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
   isExistingSource = false,
   dropdownPosition = "bottom",
 }) => {
-  const isFixed = isExistingSource;
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [dropdownRect, setDropdownRect] = useState({ top: 0, left: 0, width: 0, bottom: 0 });
+  const [dropdownRect, setDropdownRect] = useState({ top: 0, left: 0, width: 0, bottom: 0, availableBottom: 0, availableTop: 0 });
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -88,27 +87,67 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
     };
   }, []);
 
-  useEffect(() => {
-    if (showSuggestions && wrapperRef.current) {
+  const updateDropdownRect = () => {
+    if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
       setDropdownRect({
         top: rect.top,
         left: rect.left,
         width: rect.width,
-        bottom: rect.bottom
+        bottom: rect.bottom,
+        availableBottom: window.innerHeight - rect.bottom,
+        availableTop: rect.top
       });
+    }
+  };
+
+  useEffect(() => {
+    if (showSuggestions) {
+      updateDropdownRect();
     }
   }, [showSuggestions, value]);
 
-  // Close on scroll to avoid detached fixed dropdown
   useEffect(() => {
-    if (!showSuggestions || !isFixed) return;
-    const handleScroll = () => setShowSuggestions(false);
+    if (!showSuggestions) return;
+    const handleScroll = (e: Event) => {
+      // Don't reposition if the scroll happened inside the dropdown itself
+      if (e.target && (e.target as HTMLElement).closest && (e.target as HTMLElement).closest('.source-autocomplete-dropdown')) {
+        return;
+      }
+      updateDropdownRect();
+    };
     window.addEventListener("scroll", handleScroll, true);
-    return () => window.removeEventListener("scroll", handleScroll, true);
-  }, [showSuggestions, isFixed]);
+    window.addEventListener("resize", handleScroll, true);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll, true);
+    };
+  }, [showSuggestions]);
 
   const filtered = (suggestions || []).filter(s => s.source.toLowerCase().includes((value || "").toLowerCase()));
+
+  let finalPosition = dropdownPosition;
+  let maxHeight = 192; // 48 * 4 = 192px max-h-48 default
+  
+  if (dropdownPosition === "bottom") {
+     const footerHeight = 70; // safe margin for footer
+     if (dropdownRect.availableBottom < 120 && dropdownRect.availableTop > dropdownRect.availableBottom) {
+        finalPosition = "top";
+        maxHeight = Math.min(192, dropdownRect.availableTop - 10);
+     } else {
+        maxHeight = Math.min(192, dropdownRect.availableBottom - footerHeight);
+     }
+  } else {
+     if (dropdownRect.availableTop < 120 && dropdownRect.availableBottom > dropdownRect.availableTop) {
+        finalPosition = "bottom";
+        const footerHeight = 70;
+        maxHeight = Math.min(192, dropdownRect.availableBottom - footerHeight);
+     } else {
+        maxHeight = Math.min(192, dropdownRect.availableTop - 10);
+     }
+  }
+  
+  maxHeight = Math.max(80, maxHeight); // clamp minimum
 
   return (
     <div className={`${wrapperClassName || (isExistingSource ? "" : "flex-1 min-w-[80px]")} relative`} ref={wrapperRef}>
@@ -137,24 +176,16 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
         />
       )}
 
-      {showSuggestions && filtered.length > 0 && !isFixed && dropdownPosition === "bottom" && (
-        <div className="absolute left-0 w-[1px] pointer-events-none" style={{ top: "100%", height: "260px" }} aria-hidden="true" />
-      )}
       {showSuggestions && filtered.length > 0 && (
         <div 
-          className={`${isFixed ? "fixed z-[99999]" : "absolute z-[5]"} min-w-[140px] max-h-48 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg p-1.5 flex flex-col gap-1.5`}
-          style={isFixed ? {
+          className="source-autocomplete-dropdown fixed z-[99999] min-w-[140px] overflow-y-auto bg-white border border-gray-300 rounded shadow-lg p-1.5 flex flex-col gap-1.5"
+          style={{
             left: dropdownRect.left,
-            ...(dropdownPosition === "top" 
+            ...(finalPosition === "top" 
               ? { bottom: window.innerHeight - dropdownRect.top + 4 } 
               : { top: dropdownRect.bottom + 4 }),
-            minWidth: Math.max(dropdownRect.width, 140)
-          } : {
-            left: 0,
-            ...(dropdownPosition === "top" 
-              ? { bottom: "calc(100% + 4px)" } 
-              : { top: "calc(100% + 4px)" }),
-            minWidth: Math.max(dropdownRect.width, 140)
+            minWidth: Math.max(dropdownRect.width, 140),
+            maxHeight: `${maxHeight}px`
           }}
         >
           {filtered.map((s, idx) => (
@@ -175,4 +206,3 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
     </div>
   );
 };
-

@@ -1393,7 +1393,7 @@ export const AddRowModal = React.memo(
           </Button>
         )}
 
-        <div className="mt-4 flex justify-end gap-2 sticky bottom-0 bg-white py-3 border-t border-gray-100 z-10 -mb-1">
+        <div className="mt-4 flex justify-end gap-2 sticky bottom-0 bg-white py-3 border-t border-gray-100 z-10">
           {onBack ? (
             <Button variant="outline" onClick={onBack}>
               {backText}
