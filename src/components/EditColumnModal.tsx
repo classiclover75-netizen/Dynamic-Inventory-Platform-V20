@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Select, Modal } from './ui';
-import { Column, ColumnType } from '../types';
+import { Column, ColumnType, RowData } from '../types';
 import { useToast } from './ToastProvider';
 
 import { DropdownOptionsEditor } from './DropdownOptionsEditor';
@@ -12,7 +12,8 @@ export const EditColumnModal = React.memo(({
   onSave,
   onUpdate,
   column,
-  existingColumns
+  existingColumns,
+  rows = []
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -21,6 +22,7 @@ export const EditColumnModal = React.memo(({
   onUpdate?: (updatedColumn: Column) => void;
   column: Column | null;
   existingColumns: Column[];
+  rows?: RowData[];
 }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<ColumnType>('text');
@@ -153,6 +155,30 @@ export const EditColumnModal = React.memo(({
           onChange={e => {
             const newVal = e.target.value as ColumnType;
             setType(newVal);
+
+            // Auto-populate options if changing to dropdown
+            if (newVal === 'dropdown' && column && rows && rows.length > 0) {
+              const uniqueValues = new Set<string>();
+              rows.forEach(row => {
+                const val = row[column.key];
+                if (val && typeof val === 'string' && val.trim() !== '') {
+                  uniqueValues.add(val);
+                }
+              });
+
+              if (uniqueValues.size > 0) {
+                setOptions(prevOptions => {
+                  const newOptions = [...prevOptions];
+                  uniqueValues.forEach(val => {
+                    if (!newOptions.includes(val)) {
+                      newOptions.push(val);
+                    }
+                  });
+                  return newOptions;
+                });
+              }
+            }
+
             if (onUpdate && column) {
               onUpdate(getUpdatedColumn({ type: newVal }));
             }

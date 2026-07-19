@@ -2424,6 +2424,7 @@ function AppContent() {
         onUpdate={handleUpdateColumnPreview}
         column={editingColumn}
         existingColumns={activeConfig.columns}
+        rows={state.pageRows[state.activePage] || []}
       />
 
       {/* ConfirmationModal is now global */}
