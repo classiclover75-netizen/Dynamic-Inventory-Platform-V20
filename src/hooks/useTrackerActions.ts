@@ -194,7 +194,7 @@ export function useTrackerActions(deps: {
       name: customSaleName,
       type: "sale_tracker" as const,
       archived: false,
-      width: 150,
+      width: 260,
     };
 
     // Find where to insert the new column (before existing sale columns)
