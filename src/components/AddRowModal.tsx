@@ -195,6 +195,7 @@ export const AddRowModal = React.memo(
     onApplySourceToAll,
     setConfirmationModal,
     getImageUrl,
+    isLiveTracker = false,
   }: {
     isOpen: boolean;
     onClose: () => void;
@@ -218,6 +219,7 @@ export const AddRowModal = React.memo(
       } | null,
     ) => void;
     getImageUrl: (val: any) => string;
+    isLiveTracker?: boolean;
   }) => {
     const { toast } = useToast();
     const [blocks, setBlocks] = useState<Record<string, any>[]>([{}]);
@@ -595,6 +597,14 @@ export const AddRowModal = React.memo(
           Active Page: <b>{activePage}</b> | Columns:{" "}
           <b>{editableCols.length}</b>
         </div>
+        {isLiveTracker && (
+          <div className="mb-3 text-xs text-gray-500 bg-gray-50 border border-gray-200 p-2 rounded flex items-center gap-2">
+            <Lock size={14} className="text-gray-400" />
+            <span>
+              <b>Live Tracker:</b> only Total Qty is editable here. Edit other fields from the main page.
+            </span>
+          </div>
+        )}
 
         {editableCols.length > 0 && (
           <div className="mb-4 border border-purple-200 bg-purple-50 rounded-md p-2.5">
@@ -714,12 +724,20 @@ export const AddRowModal = React.memo(
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                   {editableCols.map((col) => {
                     const isReadOnly =
-                      col.name &&
-                      col.name.toLowerCase().includes("remaining qty");
+                      (col.name &&
+                        col.name.toLowerCase().includes("remaining qty")) ||
+                      (isLiveTracker && col.key !== "total_qty");
                     const colNumber =
                       columns.findIndex((c) => c.key === col.key) + 1;
+
                     return (
-                      <div key={col.key} className="flex flex-col">
+                      <div key={col.key} className={`flex flex-col relative ${isReadOnly ? "opacity-60" : ""}`}>
+                        {isReadOnly && (
+                          <div
+                            className="absolute inset-0 z-10 cursor-not-allowed"
+                            title={isLiveTracker ? "Live Tracker: only Total Qty is editable here. Edit other fields from the main page." : "Field is auto-calculated or locked"}
+                          />
+                        )}
                         <label className="text-xs font-bold text-gray-600 mb-1">
                           {colNumber}. {col.name}{" "}
                           {col.key === "total_qty"
