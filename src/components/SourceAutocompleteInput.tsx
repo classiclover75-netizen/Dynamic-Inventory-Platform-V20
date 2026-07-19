@@ -3,16 +3,27 @@ import { Input } from "./ui";
 import { parseMultiSource } from "../lib/appUtils";
 import { RowData } from "../types";
 
+export interface SourceSuggestion {
+  source: string;
+  color: string;
+}
+
 export function useSourceSuggestions(allRows: RowData[], currentBlocks: Record<string, any>[]) {
   return useMemo(() => {
-    const sources = new Set<string>();
+    const sourcesMap = new Map<string, SourceSuggestion>();
     
     // 1. Scan existing rows
     (allRows || []).forEach((row) => {
       const parsed = parseMultiSource(row.total_qty);
       parsed.forEach((s: any) => {
         if (s.source && s.source.trim()) {
-          sources.add(s.source.trim());
+          const lower = s.source.trim().toLowerCase();
+          if (!sourcesMap.has(lower)) {
+            sourcesMap.set(lower, {
+              source: s.source.trim(),
+              color: s.color || "bg-gray-100 text-gray-800 border-gray-200"
+            });
+          }
         }
       });
     });
@@ -23,20 +34,26 @@ export function useSourceSuggestions(allRows: RowData[], currentBlocks: Record<s
         const parsed = parseMultiSource(block.total_qty);
         parsed.forEach((s: any) => {
           if (s.source && s.source.trim()) {
-            sources.add(s.source.trim());
+            const lower = s.source.trim().toLowerCase();
+            if (!sourcesMap.has(lower)) {
+              sourcesMap.set(lower, {
+                source: s.source.trim(),
+                color: s.color || "bg-gray-100 text-gray-800 border-gray-200"
+              });
+            }
           }
         });
       }
     });
 
-    return Array.from(sources);
+    return Array.from(sourcesMap.values());
   }, [allRows, currentBlocks]);
 }
 
 interface SourceAutocompleteInputProps {
   value: string;
   onChange: (val: string) => void;
-  suggestions: string[];
+  suggestions: SourceSuggestion[];
   placeholder?: string;
   className?: string;
   isExistingSource?: boolean;
@@ -65,7 +82,7 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
     };
   }, []);
 
-  const filtered = (suggestions || []).filter(s => s.toLowerCase().includes((value || "").toLowerCase()));
+  const filtered = (suggestions || []).filter(s => s.source.toLowerCase().includes((value || "").toLowerCase()));
 
   return (
     <div className={`relative ${isExistingSource ? "" : "flex-1 min-w-[80px]"}`} ref={wrapperRef}>
@@ -94,18 +111,18 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
         />
       )}
       {showSuggestions && filtered.length > 0 && (
-        <div className="absolute z-[9999] left-0 mt-1 min-w-[120px] max-h-48 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg">
+        <div className="absolute z-[9999] left-0 mt-1 min-w-[140px] max-h-48 overflow-y-auto bg-white border border-gray-300 rounded shadow-lg p-1.5 flex flex-col gap-1.5">
           {filtered.map((s, idx) => (
             <div
               key={idx}
-              className="px-3 py-2 cursor-pointer hover:bg-purple-100 text-sm text-gray-800"
+              className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center justify-center cursor-pointer transition-opacity hover:opacity-80 ${s.color || "bg-gray-100 text-gray-800 border-gray-200"}`}
               onMouseDown={(e) => {
                 e.preventDefault();
-                onChange(s);
+                onChange(s.source);
                 setShowSuggestions(false);
               }}
             >
-              {s}
+              {s.source}
             </div>
           ))}
         </div>
@@ -113,3 +130,4 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
     </div>
   );
 };
+
