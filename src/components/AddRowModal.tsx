@@ -13,6 +13,7 @@ import {
   Copy,
   Layers3,
 } from "lucide-react";
+import { RichDropdownSelect } from "./RichDropdownSelect";
 
 const RichTextEditor = ({
   value,
@@ -1304,7 +1305,17 @@ export const AddRowModal = React.memo(
                               </div>
                             )}
                           </div>
-                        ) : col.type === "text" || col.type === "dropdown" ? (
+                        ) : col.type === "dropdown" ? (
+                          <div className={isReadOnly ? "pointer-events-none opacity-70" : ""}>
+                            <RichDropdownSelect
+                              value={block[col.key] || ""}
+                              onChange={(val) => handleUpdateField(i, col.key, val)}
+                              options={col.options || []}
+                              disabled={isReadOnly}
+                              placeholder={`Select ${col.name}`}
+                            />
+                          </div>
+                        ) : col.type === "text" ? (
                           <div
                             className={
                               isReadOnly
