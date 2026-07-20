@@ -564,7 +564,6 @@ const pageSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   config: { type: mongoose.Schema.Types.Mixed, default: {} }
 });
-pageSchema.index({ name: 1 });
 const Page = mongoose.model('Page', pageSchema);
 
 const pageRowSchema = new mongoose.Schema({
