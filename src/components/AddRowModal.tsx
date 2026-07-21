@@ -363,6 +363,45 @@ export const AddRowModal = React.memo(
       }
     };
 
+    const handleSourceRename = (
+      blockIndex: number, 
+      oldName: string, 
+      newName: string,
+      updatedTotalSources: any[]
+    ) => {
+      const newBlocks = [...blocks];
+      const block = { ...newBlocks[blockIndex] };
+      
+      block["total_qty"] = JSON.stringify(updatedTotalSources);
+      
+      columns.filter(c => c.type === "sale_tracker").forEach(col => {
+        if (block[col.key]) {
+          const saleSources = parseMultiSource(block[col.key]);
+          let changed = false;
+          
+          const oldIdx = saleSources.findIndex((s: any) => s.source === oldName);
+          const existingNewIdx = saleSources.findIndex((s: any) => s.source === newName);
+          
+          if (oldIdx >= 0) {
+            changed = true;
+            if (existingNewIdx >= 0 && existingNewIdx !== oldIdx) {
+               saleSources[existingNewIdx].qty = (Number(saleSources[existingNewIdx].qty) || 0) + (Number(saleSources[oldIdx].qty) || 0);
+               saleSources.splice(oldIdx, 1);
+            } else {
+               saleSources[oldIdx].source = newName;
+            }
+          }
+          
+          if (changed) {
+            block[col.key] = JSON.stringify(saleSources);
+          }
+        }
+      });
+      
+      newBlocks[blockIndex] = block;
+      setBlocks(newBlocks);
+    };
+
     const handleUpdateField = (
       blockIndex: number,
       fieldKey: string,
@@ -533,6 +572,59 @@ export const AddRowModal = React.memo(
 
       for (let i = 0; i < blocks.length; i++) {
         const block = blocks[i];
+        
+        // Self-heal: Total Qty is the authoritative source list
+        if (block["total_qty"]) {
+           let totalSourcesArr = parseMultiSource(block["total_qty"]);
+           let totalChanged = false;
+           const uniqueTotal = new Map();
+           totalSourcesArr.forEach((s: any) => {
+               if (uniqueTotal.has(s.source)) {
+                   totalChanged = true;
+                   uniqueTotal.get(s.source).qty = (Number(uniqueTotal.get(s.source).qty) || 0) + (Number(s.qty) || 0);
+               } else {
+                   uniqueTotal.set(s.source, { ...s, qty: Number(s.qty) || 0 });
+               }
+           });
+           if (totalChanged) {
+               totalSourcesArr = Array.from(uniqueTotal.values());
+               block["total_qty"] = JSON.stringify(totalSourcesArr);
+           }
+           const totalSources = totalSourcesArr.map((s: any) => s.source);
+           columns.filter(c => c.type === "sale_tracker").forEach(col => {
+             if (block[col.key]) {
+                let saleSources = parseMultiSource(block[col.key]);
+                let changed = false;
+                
+                const filtered = saleSources.filter((s: any) => totalSources.includes(s.source));
+                if (filtered.length !== saleSources.length) {
+                   saleSources = filtered;
+                   changed = true;
+                }
+                
+                const uniqueSources = new Map();
+                let hasDuplicates = false;
+                saleSources.forEach((s: any) => {
+                   if (uniqueSources.has(s.source)) {
+                      hasDuplicates = true;
+                      uniqueSources.get(s.source).qty = (Number(uniqueSources.get(s.source).qty) || 0) + (Number(s.qty) || 0);
+                   } else {
+                      uniqueSources.set(s.source, { ...s, qty: Number(s.qty) || 0 });
+                   }
+                });
+                
+                if (hasDuplicates) {
+                   saleSources = Array.from(uniqueSources.values());
+                   changed = true;
+                }
+                
+                if (changed) {
+                   block[col.key] = saleSources.length > 0 ? JSON.stringify(saleSources) : "";
+                }
+             }
+           });
+        }
+
         const payload: RowData = {
           id:
             editingRow && i === 0
@@ -835,12 +927,18 @@ export const AddRowModal = React.memo(
                                                       e.target.style.height = 'auto';
                                                       e.target.style.height = e.target.scrollHeight + 'px';
                                                       const copy = [...currentSources];
-                                                      copy[idx].source = e.target.value;
-                                                      handleUpdateField(
-                                                        i,
-                                                        col.key,
-                                                        JSON.stringify(copy),
-                                                      );
+                                                      const oldName = copy[idx].source;
+                                                      const newName = e.target.value;
+                                                      copy[idx].source = newName;
+                                                      if (oldName !== newName) {
+                                                        handleSourceRename(i, oldName, newName, copy);
+                                                      } else {
+                                                        handleUpdateField(
+                                                          i,
+                                                          col.key,
+                                                          JSON.stringify(copy),
+                                                        );
+                                                      }
                                                     }}
                                                   />
                                                 </div>

@@ -1291,15 +1291,21 @@ function AppContent() {
     activeRows.forEach((row) => {
       // 1. Scan global sources from total_qty
       const totalSources = parseMultiSource(row.total_qty);
+      const rowSourceNames = new Set<string>();
       totalSources.forEach((s: any) => {
-        if (s.source) allSources.add(s.source);
+        if (s.source) {
+          allSources.add(s.source);
+          rowSourceNames.add(s.source);
+        }
       });
 
-      // 2. Scan specific range columns
+      // 2. Scan specific range columns (Self-heal: only include if exists in total_qty)
       keys.forEach((k) => {
         const parsed = parseMultiSource(row[k]);
         parsed.forEach((s: any) => {
-          if (s.source) allSources.add(s.source);
+          if (s.source && rowSourceNames.has(s.source)) {
+            allSources.add(s.source);
+          }
         });
       });
     });
@@ -1312,11 +1318,11 @@ function AppContent() {
     return activeRows.map((r) => {
       let totalQty = 0;
       const breakdownMap: Record<string, number> = {};
-
+      const validSources = new Set(parseMultiSource(r.total_qty).map((s: any) => s.source));
       activeCustomSum.keys.forEach((k) => {
         const sources = parseMultiSource(r[k]);
         sources.forEach((s: any) => {
-          if (selected.length === 0 || selected.includes(s.source)) {
+          if (validSources.has(s.source) && (selected.length === 0 || selected.includes(s.source))) {
             totalQty += parseFloat(String(s.qty)) || 0;
             breakdownMap[s.source] = (breakdownMap[s.source] || 0) + (parseFloat(String(s.qty)) || 0);
           }
