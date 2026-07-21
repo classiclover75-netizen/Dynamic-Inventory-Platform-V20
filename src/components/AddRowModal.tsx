@@ -612,7 +612,7 @@ export const AddRowModal = React.memo(
           </div>
         )}
 
-        {editableCols.length > 0 && (
+        {!isLiveTracker && editableCols.length > 0 && (
           <div className="mb-4 border border-purple-200 bg-purple-50 rounded-md p-2.5">
             <div className="text-xs text-purple-800 font-bold mb-1 flex items-center gap-1">
               <Wand2 size={14} /> Add Row Magic Paste Box
