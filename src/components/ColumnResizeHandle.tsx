@@ -56,7 +56,7 @@ export const ColumnResizeHandle = ({
       const padding = 8;
       
       let left = handleRect.right - rect.width;
-      let top = handleRect.bottom + 4;
+      let top = handleRect.top;
 
       if (left < padding) {
         left = padding;
