@@ -708,7 +708,7 @@ export const AddRowModal = React.memo(
                     Row {i + 1}
                   </div>
                   <div className="flex gap-2">
-                    {block._undoData && (
+                    {!isLiveTracker && block._undoData && (
                       <Button
                         variant="orange"
                         onClick={() => handleUndoReset(i)}
@@ -716,15 +716,19 @@ export const AddRowModal = React.memo(
                         <Undo2 size={14} /> Undo
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      onClick={() => handleResetBlock(i)}
-                    >
-                      <RotateCcw size={14} /> Reset
-                    </Button>
-                    <Button variant="red" onClick={() => handleRemoveBlock(i)}>
-                      <Trash2 size={14} /> Delete
-                    </Button>
+                    {!isLiveTracker && (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleResetBlock(i)}
+                        >
+                          <RotateCcw size={14} /> Reset
+                        </Button>
+                        <Button variant="red" onClick={() => handleRemoveBlock(i)}>
+                          <Trash2 size={14} /> Delete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
@@ -1467,7 +1471,7 @@ export const AddRowModal = React.memo(
               Back to Workspace
             </Button>
           )}
-          {editingRow && onDelete && (
+          {!isLiveTracker && editingRow && onDelete && (
             <Button
               variant="red"
               onClick={() => {
