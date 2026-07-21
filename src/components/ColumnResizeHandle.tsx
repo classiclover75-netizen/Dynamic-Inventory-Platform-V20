@@ -147,7 +147,7 @@ export const ColumnResizeHandle = ({
             />
             <div
               ref={popupRef}
-              className="fixed z-[10001] bg-white border border-gray-300 p-3 rounded shadow-2xl flex flex-col gap-2.5 min-w-[140px]"
+              className="fixed z-[10001] bg-white border border-gray-300 p-3 rounded shadow-2xl flex flex-col gap-2.5 w-[140px]"
               style={{
                 left: `${popupPos.left}px`,
                 top: `${popupPos.top}px`,
