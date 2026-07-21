@@ -729,6 +729,10 @@ export const AddRowModal = React.memo(
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                   {editableCols.map((col) => {
+                    if (isLiveTracker) {
+                      if (col.name && col.name.toLowerCase().includes("remaining qty")) return null;
+                      if (col.type === "sale_tracker") return null;
+                    }
                     const isReadOnly =
                       (col.name &&
                         col.name.toLowerCase().includes("remaining qty")) ||
