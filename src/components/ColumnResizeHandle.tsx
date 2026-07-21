@@ -160,12 +160,12 @@ export const ColumnResizeHandle = ({
               <div className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider border-b pb-1">
                 Column Resizing
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2">
                 <input
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  className="w-20 px-2 py-1 border rounded text-sm focus:outline-blue-500"
+                  className="w-full px-2 py-1 border rounded text-sm focus:outline-blue-500"
                   value={inputValue}
                   onBlur={handleManualSave}
                   onChange={(e) => {
@@ -180,13 +180,13 @@ export const ColumnResizeHandle = ({
                 />
                 <button
                   onClick={handleManualSave}
-                  className="bg-blue-600 text-white text-xs px-3 py-1 rounded font-bold hover:bg-blue-700 transition-colors"
+                  className="w-full bg-blue-600 text-white text-xs px-3 py-1 rounded font-bold hover:bg-blue-700 transition-colors"
                 >
                   Save
                 </button>
                 <button
                   onClick={() => setShowManualInput(false)}
-                  className="bg-red-600 text-white text-xs px-3 py-1 rounded font-bold hover:bg-red-700 transition-colors"
+                  className="w-full bg-red-600 text-white text-xs px-3 py-1 rounded font-bold hover:bg-red-700 transition-colors"
                 >
                   Cancel
                 </button>
