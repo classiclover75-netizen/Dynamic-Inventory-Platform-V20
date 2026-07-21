@@ -18,6 +18,19 @@ export const ColumnResizeHandle = ({
   const [popupPos, setPopupPos] = useState({ left: 0, top: 0, opacity: 0 });
   const popupRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isCancelling = useRef(false);
+
+  useEffect(() => {
+    if (showManualInput) {
+      isCancelling.current = false;
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [showManualInput]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -76,9 +89,9 @@ export const ColumnResizeHandle = ({
     }
   }, [showManualInput]);
 
-  if (!header) return null;
-
   const handleManualSave = () => {
+    if (isCancelling.current) return;
+    
     let val = parseInt(inputValue);
     if (!isNaN(val)) {
       if (val < 20) val = 20;
@@ -95,6 +108,26 @@ export const ColumnResizeHandle = ({
     }
     setShowManualInput(false);
   };
+
+  useEffect(() => {
+    if (!showManualInput) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleManualSave();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        isCancelling.current = true;
+        setShowManualInput(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [showManualInput, inputValue, header, onManualSave]);
+
+  if (!header) return null;
 
   return (
     <>
@@ -145,7 +178,10 @@ export const ColumnResizeHandle = ({
           <>
             <div
               className="fixed inset-0 z-[10000]"
-              onClick={() => setShowManualInput(false)}
+              onClick={() => {
+                isCancelling.current = true;
+                setShowManualInput(false);
+              }}
             />
             <div
               ref={popupRef}
@@ -164,6 +200,7 @@ export const ColumnResizeHandle = ({
               </div>
               <div className="flex flex-col gap-2">
                 <input
+                  ref={inputRef}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -175,8 +212,15 @@ export const ColumnResizeHandle = ({
                     setInputValue(val);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleManualSave();
-                    if (e.key === "Escape") setShowManualInput(false);
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleManualSave();
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      isCancelling.current = true;
+                      setShowManualInput(false);
+                    }
                   }}
                   autoFocus
                 />
@@ -187,7 +231,10 @@ export const ColumnResizeHandle = ({
                   Save
                 </button>
                 <button
-                  onClick={() => setShowManualInput(false)}
+                  onClick={() => {
+                    isCancelling.current = true;
+                    setShowManualInput(false);
+                  }}
                   className="w-full bg-red-600 text-white text-xs px-3 py-1 rounded font-bold hover:bg-red-700 transition-colors"
                 >
                   Cancel
