@@ -785,6 +785,12 @@ export const TableView = ({
                                                 </div>
                                               ),
                                             )}
+                                            {remainingSources.length >= 2 && (
+                                              <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
+                                                <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
+                                                <span>{remainingSources.reduce((sum, s) => sum + (Number(s.remaining) || 0), 0)}</span>
+                                              </div>
+                                            )}
                                           </div>
                                         </td>
                                       );
@@ -813,7 +819,12 @@ export const TableView = ({
                                                 </div>
                                               ),
                                             )}
-
+                                            {totalSources.length >= 2 && (
+                                              <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
+                                                <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
+                                                <span>{totalSources.reduce((sum, s) => sum + (Number(s.qty) || 0), 0)}</span>
+                                              </div>
+                                            )}
                                           </div>
                                         </td>
                                       );
@@ -939,6 +950,15 @@ export const TableView = ({
                                                   </div>
                                                 );
                                               }
+                                            )}
+                                            {totalSources.length >= 2 && (
+                                              <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1.5">
+                                                <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
+                                                <span>{totalSources.reduce((sum, ts) => {
+                                                    const currentSaleEntry = draftVal.find((s) => s.source === ts.source);
+                                                    return sum + (currentSaleEntry ? (Number(currentSaleEntry.qty) || 0) : 0);
+                                                }, 0)}</span>
+                                              </div>
                                             )}
                                           </div>
                                         </td>
