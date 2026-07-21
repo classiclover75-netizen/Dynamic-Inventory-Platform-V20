@@ -312,6 +312,7 @@ export const TableView = ({
 
                       <ColumnResizeHandle 
                         header={header} 
+                        columnName={col.name}
                         onManualSave={(id, w) => {
                           let targetPage = state.activePage;
                           if (isSecondary && activeConfig?.secondarySearchPage) {

@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 
 export const ColumnResizeHandle = ({
   header,
+  columnName,
   onManualSave,
 }: {
   header: any;
+  columnName?: string;
   onManualSave?: (id: string, width: number) => void;
 }) => {
   const isResizing = header?.column?.getIsResizing();
@@ -15,6 +17,7 @@ export const ColumnResizeHandle = ({
   const [inputValue, setInputValue] = useState("");
   const [popupPos, setPopupPos] = useState({ left: 0, top: 0, opacity: 0 });
   const popupRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -47,12 +50,13 @@ export const ColumnResizeHandle = ({
   }, [isDragging]);
 
   useEffect(() => {
-    if (showManualInput && popupRef.current) {
+    if (showManualInput && popupRef.current && handleRef.current) {
       const rect = popupRef.current.getBoundingClientRect();
+      const handleRect = handleRef.current.getBoundingClientRect();
       const padding = 8;
       
-      let left = mousePos.x - rect.width / 2;
-      let top = mousePos.y - rect.height * 1.1;
+      let left = handleRect.right - rect.width;
+      let top = handleRect.bottom + 4;
 
       if (left < padding) {
         left = padding;
@@ -61,10 +65,7 @@ export const ColumnResizeHandle = ({
       }
 
       if (top < padding) {
-        top = mousePos.y + 16;
-        if (top + rect.height > window.innerHeight - padding) {
-          top = window.innerHeight - rect.height - padding;
-        }
+        top = padding;
       } else if (top + rect.height > window.innerHeight - padding) {
         top = window.innerHeight - rect.height - padding;
       }
@@ -73,7 +74,7 @@ export const ColumnResizeHandle = ({
     } else {
       setPopupPos({ left: 0, top: 0, opacity: 0 });
     }
-  }, [showManualInput, mousePos]);
+  }, [showManualInput]);
 
   if (!header) return null;
 
@@ -98,6 +99,7 @@ export const ColumnResizeHandle = ({
   return (
     <>
       <div
+        ref={handleRef}
         onMouseDown={(e) => {
           e.stopPropagation();
           header.getResizeHandler()(e);
@@ -147,7 +149,7 @@ export const ColumnResizeHandle = ({
             />
             <div
               ref={popupRef}
-              className="fixed z-[10001] bg-white border border-gray-300 p-3 rounded shadow-2xl flex flex-col gap-2.5 w-[140px]"
+              className="fixed z-[10001] bg-white border border-gray-300 p-3 rounded shadow-2xl flex flex-col gap-2.5 w-auto min-w-[120px] max-w-[260px]"
               style={{
                 left: `${popupPos.left}px`,
                 top: `${popupPos.top}px`,
@@ -157,8 +159,8 @@ export const ColumnResizeHandle = ({
               onMouseDown={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
             >
-              <div className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider border-b pb-1">
-                Column Resizing
+              <div className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider border-b pb-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                {columnName ? `Resize: ${columnName}` : "Column Resizing"}
               </div>
               <div className="flex flex-col gap-2">
                 <input
