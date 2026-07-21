@@ -182,7 +182,7 @@ export const ActivePageSettingsModal = React.memo(({
       <div className="text-xs text-[#607d8b] mb-2 font-bold">
         Page: <span className="text-gray-800">{activePage || 'No page selected'}</span>
       </div>
-      <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
+      {!pageConfig?.linkedSourcePage && (<div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
         <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
           <span className="text-[13px] text-[#37474f] font-bold">Row Height</span>
           <div className="flex items-center gap-2">
@@ -221,8 +221,8 @@ export const ActivePageSettingsModal = React.memo(({
         <div className="mt-2 text-[11px] text-[#78909c] leading-snug">
           Adjust the global height of all rows on this page (40-300px).
         </div>
-      </div>
-      <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
+      </div>)}
+      {!pageConfig?.linkedSourcePage && (<div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
         <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
           <span className="text-[13px] text-[#37474f] font-bold">Row Reorder</span>
           <input 
@@ -239,7 +239,7 @@ export const ActivePageSettingsModal = React.memo(({
         <div className="mt-2 text-[11px] text-[#78909c] leading-snug">
           Enable this to unlock single-row and multi-row move features. Disable it to prevent accidental row movement.
         </div>
-      </div>
+      </div>)}
       {!!pageConfig?.linkedSourcePage && (
         <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
           <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
@@ -278,7 +278,7 @@ export const ActivePageSettingsModal = React.memo(({
           When enabled, hovering over an image cell will show a larger preview of the image.
         </div>
       </div>
-      <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
+      {!pageConfig?.linkedSourcePage && (<div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
         <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
           <span className="text-[13px] text-[#37474f] font-bold">Link Secondary Search Page</span>
           <select 
@@ -304,7 +304,7 @@ export const ActivePageSettingsModal = React.memo(({
         <div className="mt-2 text-[11px] text-[#78909c] leading-snug">
           Select another page to display a secondary search bar and view its data below this page's data.
         </div>
-      </div>
+      </div>)}
       <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
         <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
           <span className="text-[13px] text-[#37474f] font-bold">Independent Search Bars</span>
@@ -346,7 +346,7 @@ export const ActivePageSettingsModal = React.memo(({
         </div>
       )}
 
-      <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+      {!pageConfig?.linkedSourcePage && (<div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-[#2b579a]">📦 Page Copy Boxes</p>
@@ -364,7 +364,7 @@ export const ActivePageSettingsModal = React.memo(({
             ⚙️ Configure Copy Boxes for this Page
           </Button>
         )}
-      </div>
+      </div>)}
 
       {!pageConfig?.isTrackerPage && onCreateTracker && (
         <div className="mt-4 border-t border-[#eceff1] pt-3 mb-3">
@@ -387,10 +387,10 @@ export const ActivePageSettingsModal = React.memo(({
       )}
 
       <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50">
-        <div className="flex gap-2 mb-2">
+        {!pageConfig?.linkedSourcePage && (<div className="flex gap-2 mb-2">
           <Button variant="blue" className="flex-1 justify-center" onClick={onCreateColumn}><Plus size={14} /> Create Column</Button>
           <Button variant="green" className="flex-1 justify-center" onClick={onAddRow}>🧾 Add Row</Button>
-        </div>
+        </div>)}
         
         { (
           <div className="flex gap-2 mb-2">
@@ -418,12 +418,12 @@ export const ActivePageSettingsModal = React.memo(({
         )}
 
         <div className="flex gap-2 mb-2">
-          <Button variant="green" className="flex-1 justify-center" onClick={onImportExcel}>📥 Import Excel</Button>
+          {!pageConfig?.linkedSourcePage && <Button variant="green" className="flex-1 justify-center" onClick={onImportExcel}>📥 Import Excel</Button>}
           <Button variant="blue" className="flex-1 justify-center" onClick={onExportExcel}>📤 Export Excel</Button>
         </div>
 
         <div className="flex justify-between items-center mt-2 mb-4 gap-2">
-          <Button variant="outline" className="flex-1 justify-center" onClick={() => fileInputRef.current?.click()}>📂 Import Page (JSON/ZIP)</Button>
+          {!pageConfig?.linkedSourcePage && <Button variant="outline" className="flex-1 justify-center" onClick={() => fileInputRef.current?.click()}>📂 Import Page (JSON/ZIP)</Button>}
           {!pageConfig?.isTrackerPage && (
             <Button variant="outline" className="flex-1 justify-center border-blue-600 text-blue-600 hover:bg-blue-50" onClick={() => {
               window.open("/api/export-zip/page/" + encodeURIComponent(activePage));
@@ -446,9 +446,9 @@ export const ActivePageSettingsModal = React.memo(({
         </div>
 
         <div className="flex gap-2 mb-2">
-          <Button variant="outline" className="flex-1 justify-center text-orange-600 border-orange-600 hover:bg-orange-50" onClick={onFindDuplicates}>
+          {!pageConfig?.linkedSourcePage && <Button variant="outline" className="flex-1 justify-center text-orange-600 border-orange-600 hover:bg-orange-50" onClick={onFindDuplicates}>
             🔍 Find Duplicates
-          </Button>
+          </Button>}
           <Button variant="outline" className="flex-1 justify-center text-red-600 border-red-600 hover:bg-red-50" onClick={() => {
             setConfirmationModal({
               isOpen: true,
