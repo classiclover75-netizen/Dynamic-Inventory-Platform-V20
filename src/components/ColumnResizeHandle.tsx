@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 export const ColumnResizeHandle = ({
@@ -13,6 +13,8 @@ export const ColumnResizeHandle = ({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [showManualInput, setShowManualInput] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [popupPos, setPopupPos] = useState({ left: 0, top: 0, opacity: 0 });
+  const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -43,6 +45,35 @@ export const ColumnResizeHandle = ({
       window.removeEventListener("touchend", handleMouseUp);
     };
   }, [isDragging]);
+
+  useEffect(() => {
+    if (showManualInput && popupRef.current) {
+      const rect = popupRef.current.getBoundingClientRect();
+      const padding = 8;
+      
+      let left = mousePos.x - rect.width / 2;
+      let top = mousePos.y - rect.height * 1.1;
+
+      if (left < padding) {
+        left = padding;
+      } else if (left + rect.width > window.innerWidth - padding) {
+        left = window.innerWidth - rect.width - padding;
+      }
+
+      if (top < padding) {
+        top = mousePos.y + 16;
+        if (top + rect.height > window.innerHeight - padding) {
+          top = window.innerHeight - rect.height - padding;
+        }
+      } else if (top + rect.height > window.innerHeight - padding) {
+        top = window.innerHeight - rect.height - padding;
+      }
+
+      setPopupPos({ left, top, opacity: 1 });
+    } else {
+      setPopupPos({ left: 0, top: 0, opacity: 0 });
+    }
+  }, [showManualInput, mousePos]);
 
   if (!header) return null;
 
@@ -115,11 +146,13 @@ export const ColumnResizeHandle = ({
               onClick={() => setShowManualInput(false)}
             />
             <div
+              ref={popupRef}
               className="fixed z-[10001] bg-white border border-gray-300 p-3 rounded shadow-2xl flex flex-col gap-2.5 min-w-[200px]"
               style={{
-                left: `${mousePos.x}px`,
-                top: `${mousePos.y}px`,
-                transform: "translate(-50%, -110%)",
+                left: `${popupPos.left}px`,
+                top: `${popupPos.top}px`,
+                opacity: popupPos.opacity,
+                visibility: popupPos.opacity === 0 ? "hidden" : "visible",
               }}
               onMouseDown={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
