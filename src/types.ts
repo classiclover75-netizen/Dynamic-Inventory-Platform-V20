@@ -43,6 +43,7 @@ export interface PageConfig {
   independentSearchBars?: boolean;
   linkedSourcePage?: string;
   isTrackerPage?: boolean;
+  autoSortBySales?: boolean;
   minStockAlert?: number;
   showCopyBoxes?: boolean;
   copyBoxConfig?: GlobalCopyBoxesSettings;

@@ -59,6 +59,7 @@ export const ActivePageSettingsModal = React.memo(({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [rowReorder, setRowReorder] = useState(pageConfig?.rowReorderEnabled || false);
   const [hoverPreview, setHoverPreview] = useState(pageConfig?.hoverPreviewEnabled || false);
+  const [autoSortBySales, setAutoSortBySales] = useState(pageConfig?.autoSortBySales || false);
   const [independentSearchBars, setIndependentSearchBars] = useState(pageConfig?.independentSearchBars ?? true);
   const [rowHeight, setRowHeight] = useState(pageConfig?.rowHeight || 100);
   const [rowHeightInput, setRowHeightInput] = useState(String(pageConfig?.rowHeight || 100));
@@ -101,6 +102,7 @@ export const ActivePageSettingsModal = React.memo(({
     if (isOpen) {
       setRowReorder(pageConfig?.rowReorderEnabled || false);
       setHoverPreview(pageConfig?.hoverPreviewEnabled || false);
+      setAutoSortBySales(pageConfig?.autoSortBySales || false);
       setIndependentSearchBars(pageConfig?.independentSearchBars ?? true);
       const initialHeight = pageConfig?.rowHeight || 100;
       setRowHeight(initialHeight);
@@ -123,7 +125,8 @@ export const ActivePageSettingsModal = React.memo(({
         ...pageConfig, 
         rowHeight: rowHeight, 
         rowReorderEnabled: rowReorder, 
-        hoverPreviewEnabled: hoverPreview, 
+        hoverPreviewEnabled: hoverPreview,
+        autoSortBySales: autoSortBySales, 
         independentSearchBars: independentSearchBars,
         secondarySearchPage: secondarySearchPage || undefined,
         minStockAlert: minStockAlert,
@@ -237,6 +240,26 @@ export const ActivePageSettingsModal = React.memo(({
           Enable this to unlock single-row and multi-row move features. Disable it to prevent accidental row movement.
         </div>
       </div>
+      {!!pageConfig?.linkedSourcePage && (
+        <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
+          <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
+            <span className="text-[13px] text-[#37474f] font-bold">Auto-sort rows by total sales (highest first)</span>
+            <input 
+              type="checkbox" 
+              className="scale-125" 
+              checked={autoSortBySales} 
+              onChange={e => {
+                const checked = e.target.checked;
+                setAutoSortBySales(checked);
+                saveConfig({ autoSortBySales: checked }, false);
+              }} 
+            />
+          </label>
+          <div className="mt-2 text-[11px] text-[#78909c] leading-snug">
+            Automatically reorder Live Tracker rows based on the total sale quantities.
+          </div>
+        </div>
+      )}
       <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
         <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
           <span className="text-[13px] text-[#37474f] font-bold">Hover Preview Image</span>

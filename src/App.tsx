@@ -1533,6 +1533,17 @@ function AppContent() {
           );
         }
       }
+      if (activeConfig.linkedSourcePage && activeConfig.autoSortBySales) {
+        const isOriginalArray = rows === activeRowsWithSum;
+        if (isOriginalArray) {
+          rows = [...rows];
+        }
+        rows.sort((a, b) => {
+          const totalSalesA = saleCols.reduce((sum, c) => sum + getNum(a[c.key]), 0);
+          const totalSalesB = saleCols.reduce((sum, c) => sum + getNum(b[c.key]), 0);
+          return totalSalesB - totalSalesA;
+        });
+      }
     }
 
     return sortRows(rows, activeConfig.columns);
@@ -1542,6 +1553,8 @@ function AppContent() {
     primarySearchTags,
     activeColumnsWithSum,
     activeConfig.isTrackerPage,
+    activeConfig.linkedSourcePage,
+    activeConfig.autoSortBySales,
     activeConfig.minStockAlert,
     trackerFilter,
     trackerSort,
