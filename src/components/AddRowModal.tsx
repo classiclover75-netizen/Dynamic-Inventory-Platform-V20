@@ -735,9 +735,11 @@ export const AddRowModal = React.memo(
                       (isLiveTracker && col.key !== "total_qty");
                     const colNumber =
                       columns.findIndex((c) => c.key === col.key) + 1;
+                      
+                    const isLiveTrackerHighlight = isLiveTracker && col.key === "total_qty";
 
                     return (
-                      <div key={col.key} className={`flex flex-col relative ${isReadOnly ? "opacity-60" : ""} ${(col.key === "total_qty" || col.type === "sale_tracker") ? "sm:col-span-2" : ""}`}>
+                      <div key={col.key} className={`flex flex-col relative ${isReadOnly ? "opacity-60" : ""} ${(col.key === "total_qty" || col.type === "sale_tracker") ? "sm:col-span-2" : ""} ${isLiveTrackerHighlight ? "ring-2 ring-blue-500 bg-blue-50/50 p-2 rounded-lg shadow-sm z-10" : ""}`}>
                         {isReadOnly && (
                           <div
                             className="absolute inset-0 z-10 cursor-not-allowed"
