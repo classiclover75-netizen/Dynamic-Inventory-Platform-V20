@@ -360,6 +360,9 @@ function AppContent() {
   const [trackerSort, setTrackerSort] = useState<"none" | "high" | "low">(
     "none",
   );
+  const [trackerQtySort, setTrackerQtySort] = useState<
+    "none" | "total_high" | "total_low" | "remaining_high" | "remaining_low"
+  >("none");
   const [showArchived, setShowArchived] = useState(false);
   const [inlineEdit, setInlineEdit] = useState<{
     id: string;
@@ -1487,20 +1490,37 @@ function AppContent() {
           0,
         );
       };
+      
+      const statsMap = new Map<string, { total: number, remaining: number }>();
+      const getStats = (row: any) => {
+        if (statsMap.has(row.id)) return statsMap.get(row.id)!;
+        const totalSources = parseMultiSource(row.total_qty);
+        let total = 0;
+        let remaining = 0;
+        totalSources.forEach((ts: any) => {
+          const tQty = parseFloat(ts.qty) || 0;
+          total += tQty;
+          let totalSaleForSource = 0;
+          saleCols.forEach((sc: any) => {
+            const sales = parseMultiSource(row[sc.key]);
+            const saleEntry = sales.find((s: any) => s.source === ts.source);
+            if (saleEntry) totalSaleForSource += (parseFloat(saleEntry.qty) || 0);
+          });
+          remaining += (tQty - totalSaleForSource);
+        });
+        const stats = { total, remaining };
+        statsMap.set(row.id, stats);
+        return stats;
+      };
 
       if (trackerFilter !== "all") {
         rows = rows.filter((row) => {
-          const total = getNum(row.total_qty);
-          const totalSales = saleCols.reduce(
-            (sum, c) => sum + getNum(row[c.key]),
-            0,
-          );
-          const remaining = total - totalSales;
+          const stats = getStats(row);
           const minStock = activeConfig.minStockAlert || 5;
           const latestSaleVal = latestSaleCol ? getNum(row[latestSaleCol]) : 0;
 
           if (trackerFilter === "low") {
-            return remaining <= minStock;
+            return stats.remaining <= minStock;
           } else if (trackerFilter === "zero") {
             return latestSaleVal === 0 || !row[latestSaleCol!];
           } else if (trackerFilter === "high") {
@@ -1545,6 +1565,22 @@ function AppContent() {
           return totalSalesB - totalSalesA;
         });
       }
+
+      if (trackerQtySort !== "none") {
+        const isOriginalArray = rows === activeRowsWithSum;
+        if (isOriginalArray) {
+          rows = [...rows];
+        }
+        rows.sort((a, b) => {
+          const statsA = getStats(a);
+          const statsB = getStats(b);
+          if (trackerQtySort === "total_high") return statsB.total - statsA.total;
+          if (trackerQtySort === "total_low") return statsA.total - statsB.total;
+          if (trackerQtySort === "remaining_high") return statsB.remaining - statsA.remaining;
+          if (trackerQtySort === "remaining_low") return statsA.remaining - statsB.remaining;
+          return 0;
+        });
+      }
     }
 
     return sortRows(rows, activeConfig.columns);
@@ -1559,6 +1595,7 @@ function AppContent() {
     activeConfig.minStockAlert,
     trackerFilter,
     trackerSort,
+    trackerQtySort,
   ]);
 
   const secondaryFilteredRows = useMemo(() => {
@@ -1611,25 +1648,42 @@ function AppContent() {
             ? saleCols[0].key
             : null;
       const getNum = (v: any) => {
-        const n = parseFloat(String(v || 0));
-        return isNaN(n) ? 0 : n;
+        return parseMultiSource(v).reduce(
+          (sum: number, s: any) => sum + (parseFloat(s.qty) || 0),
+          0,
+        );
+      };
+
+      const statsMap = new Map<string, { total: number, remaining: number }>();
+      const getStats = (row: any) => {
+        if (statsMap.has(row.id)) return statsMap.get(row.id)!;
+        const totalSources = parseMultiSource(row.total_qty);
+        let total = 0;
+        let remaining = 0;
+        totalSources.forEach((ts: any) => {
+          const tQty = parseFloat(ts.qty) || 0;
+          total += tQty;
+          let totalSaleForSource = 0;
+          saleCols.forEach((sc: any) => {
+            const sales = parseMultiSource(row[sc.key]);
+            const saleEntry = sales.find((s: any) => s.source === ts.source);
+            if (saleEntry) totalSaleForSource += (parseFloat(saleEntry.qty) || 0);
+          });
+          remaining += (tQty - totalSaleForSource);
+        });
+        const stats = { total, remaining };
+        statsMap.set(row.id, stats);
+        return stats;
       };
 
       if (trackerFilter !== "all") {
         rows = rows.filter((row) => {
-          const total = parseFloat(String(row.total_qty || 0));
-          const totalSales = saleCols.reduce(
-            (sum, c) => sum + parseFloat(String(row[c.key] || 0)),
-            0,
-          );
-          const remaining = total - totalSales;
+          const stats = getStats(row);
           const minStock = secConfig.minStockAlert || 5;
-          const latestSaleVal = latestSaleCol
-            ? parseFloat(String(row[latestSaleCol] || 0))
-            : 0;
+          const latestSaleVal = latestSaleCol ? getNum(row[latestSaleCol]) : 0;
 
           if (trackerFilter === "low") {
-            return remaining <= minStock;
+            return stats.remaining <= minStock;
           } else if (trackerFilter === "zero") {
             return latestSaleVal === 0 || !row[latestSaleCol!];
           } else if (trackerFilter === "high") {
@@ -1663,6 +1717,22 @@ function AppContent() {
           );
         }
       }
+
+      if (trackerQtySort !== "none") {
+        const isOriginalArray = rows === secRows;
+        if (isOriginalArray) {
+          rows = [...rows];
+        }
+        rows.sort((a, b) => {
+          const statsA = getStats(a);
+          const statsB = getStats(b);
+          if (trackerQtySort === "total_high") return statsB.total - statsA.total;
+          if (trackerQtySort === "total_low") return statsA.total - statsB.total;
+          if (trackerQtySort === "remaining_high") return statsB.remaining - statsA.remaining;
+          if (trackerQtySort === "remaining_low") return statsA.remaining - statsB.remaining;
+          return 0;
+        });
+      }
     }
 
     return sortRows(rows, secConfig.columns);
@@ -1674,6 +1744,7 @@ function AppContent() {
     secondarySearchTags,
     trackerFilter,
     trackerSort,
+    trackerQtySort,
   ]);
 
 
@@ -2091,6 +2162,24 @@ function AppContent() {
                 <option value="none">🟢 Default (Reset)</option>
                 <option value="high">⬆️ High Sale First</option>
                 <option value="low">⬇️ Low Sale First</option>
+              </select>
+            </div>
+
+            {/* Qty Sort Dropdown */}
+            <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
+              <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                📦 Qty:
+              </span>
+              <select
+                value={trackerQtySort}
+                onChange={(e) => setTrackerQtySort(e.target.value as any)}
+                className="text-xs font-bold text-[#2b579a] border-none outline-none cursor-pointer bg-transparent"
+              >
+                <option value="none">🟢 Default (Reset)</option>
+                <option value="total_high">⬆️ Total Qty: High to Low</option>
+                <option value="total_low">⬇️ Total Qty: Low to High</option>
+                <option value="remaining_high">⬆️ Remaining Qty: High to Low</option>
+                <option value="remaining_low">⬇️ Remaining Qty: Low to High</option>
               </select>
             </div>
           </div>
