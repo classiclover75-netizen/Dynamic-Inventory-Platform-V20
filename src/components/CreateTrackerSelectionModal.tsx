@@ -56,6 +56,29 @@ export const CreateTrackerSelectionModal: React.FC<
       return String(rowIndex + 1);
     }
     if (col.key === "remaining_qty") {
+      const rawTotal = String(row.total_qty || "");
+      if (rawTotal.trim().startsWith("[")) {
+        try {
+          const totalSources = parseMultiSource(row.total_qty);
+          const saleCols = sourceColumns.filter((c) => c.type === "sale_tracker");
+          
+          const remainingSources = totalSources.map((ts: any) => {
+            let totalSaleForSource = 0;
+            saleCols.forEach(sc => {
+              const sales = parseMultiSource(row[sc.key]);
+              const saleEntry = sales.find((s: any) => s.source === ts.source);
+              if (saleEntry) totalSaleForSource += parseFloat(saleEntry.qty) || 0;
+            });
+            return {
+              ...ts,
+              qty: (parseFloat(ts.qty) || 0) - totalSaleForSource
+            };
+          });
+          return JSON.stringify(remainingSources);
+        } catch (err) {
+          return "0";
+        }
+      }
       const total = parseFloat(String(row.total_qty || 0)) || 0;
       const saleCols = sourceColumns.filter((c) => c.type === "sale_tracker");
       const totalSales = saleCols.reduce(
@@ -65,7 +88,7 @@ export const CreateTrackerSelectionModal: React.FC<
       return String(total - totalSales);
     }
     if (col.type === "sale_tracker") {
-      return String(row[col.key] || "0");
+      return row[col.key] || "0";
     }
     return row[col.key] || "";
   };

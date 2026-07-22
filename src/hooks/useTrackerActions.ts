@@ -1,3 +1,4 @@
+import { parseMultiSource } from "../lib/appUtils";
 import React from "react";
 import { PageConfig } from "../types";
 import { putRows, savePageConfig } from "../lib/api";
@@ -244,12 +245,41 @@ export function useTrackerActions(deps: {
     const updatedRows = activeRows.map((row) => {
       const newRow = { ...row };
       if (deleteType === "smart") {
-        let totalDeduction = 0;
-        for (const key of colKeys) {
-          totalDeduction += parseFloat(String(row[key] || 0)) || 0;
+        const rawTotal = String(row.total_qty || "");
+        if (rawTotal.trim().startsWith("[")) {
+          try {
+            const totalSources = parseMultiSource(row.total_qty);
+            
+            // Calculate total deductions per source across all deleted columns
+            const sourceDeductions: Record<string, number> = {};
+            for (const key of colKeys) {
+              const saleSources = parseMultiSource(row[key]);
+              for (const ss of saleSources) {
+                if (ss.source) {
+                  sourceDeductions[ss.source] = (sourceDeductions[ss.source] || 0) + (parseFloat(String(ss.qty)) || 0);
+                }
+              }
+            }
+
+            const updatedSources = totalSources.map((ts: any) => {
+              const deduction = sourceDeductions[ts.source] || 0;
+              return {
+                ...ts,
+                qty: (parseFloat(String(ts.qty)) || 0) - deduction
+              };
+            });
+            newRow.total_qty = JSON.stringify(updatedSources);
+          } catch (err) {
+            // On parse error, leave unchanged
+          }
+        } else {
+          let totalDeduction = 0;
+          for (const key of colKeys) {
+            totalDeduction += parseFloat(String(row[key] || 0)) || 0;
+          }
+          const totalQty = parseFloat(String(row.total_qty || 0)) || 0;
+          newRow.total_qty = String(totalQty - totalDeduction);
         }
-        const totalQty = parseFloat(String(row.total_qty || 0)) || 0;
-        newRow.total_qty = String(totalQty - totalDeduction);
       }
       for (const key of colKeys) {
         delete newRow[key];

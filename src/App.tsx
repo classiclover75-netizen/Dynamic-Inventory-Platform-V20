@@ -761,9 +761,29 @@ function AppContent() {
       const newRow = { ...row };
 
       if (deleteType === "smart" && column.type === "sale_tracker") {
-        const saleValue = parseFloat(String(row[column.key] || 0)) || 0;
-        const totalQty = parseFloat(String(row.total_qty || 0)) || 0;
-        newRow.total_qty = String(totalQty - saleValue);
+        const rawTotal = String(row.total_qty || "");
+        if (rawTotal.trim().startsWith("[")) {
+          try {
+            const totalSources = parseMultiSource(row.total_qty);
+            const saleSources = parseMultiSource(row[column.key]);
+            
+            const updatedSources = totalSources.map((ts: any) => {
+              const saleEntry = saleSources.find((ss: any) => ss.source === ts.source);
+              const deduction = saleEntry ? (parseFloat(String(saleEntry.qty)) || 0) : 0;
+              return {
+                ...ts,
+                qty: (parseFloat(String(ts.qty)) || 0) - deduction
+              };
+            });
+            newRow.total_qty = JSON.stringify(updatedSources);
+          } catch (err) {
+            // On parse error, leave unchanged
+          }
+        } else {
+          const saleValue = parseFloat(String(row[column.key] || 0)) || 0;
+          const totalQty = parseFloat(String(row.total_qty || 0)) || 0;
+          newRow.total_qty = String(totalQty - saleValue);
+        }
       }
 
       delete newRow[column.key];
