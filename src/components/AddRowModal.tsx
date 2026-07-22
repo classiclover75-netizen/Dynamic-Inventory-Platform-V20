@@ -1,4 +1,4 @@
-import { isRetired, setRetired } from '../lib/sourceArchiveUtils';
+import { isRetired, setRetired, splitActiveRetired } from '../lib/sourceArchiveUtils';
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Input, Modal } from "./ui";
 import { Column, RowData } from "../types";
@@ -19,6 +19,7 @@ import { reorderSources, formatSourceNumber, sortSourcesAZ } from "../lib/multiS
 import { GripVertical, ArrowDownAZ } from "lucide-react";
 import { RichDropdownSelect } from "./RichDropdownSelect";
 import { SourceAutocompleteInput, useSourceSuggestions } from "./SourceAutocompleteInput";
+import { RetiredSourcesModal } from "./RetiredSourcesModal";
 
 const RichTextEditor = ({
   value,
@@ -245,6 +246,7 @@ export const AddRowModal = React.memo(
     >({});
     
     const sourceSuggestions = useSourceSuggestions(allRows || [], blocks);
+    const [retiredModalRowIndex, setRetiredModalRowIndex] = useState<number | null>(null);
 
     const editableCols = columns.filter((c) => c.key !== "sr");
 
@@ -681,6 +683,7 @@ export const AddRowModal = React.memo(
     };
 
     return (
+    <>
       <Modal
         isOpen={isOpen}
         onClose={onClose}
@@ -860,6 +863,7 @@ export const AddRowModal = React.memo(
                             const currentSources = parseMultiSource(
                               block[col.key],
                             );
+                            const { active: activeSources, retired: retiredSources } = splitActiveRetired(currentSources);
                             const newSourceInput = newSourceInputs[i] || {
                               source: "",
                               qty: "",
@@ -868,25 +872,38 @@ export const AddRowModal = React.memo(
                               <div className="border border-purple-200 bg-purple-50 p-2 rounded flex flex-col h-full min-h-[100px]">
                                 <div className="flex justify-between items-center mb-2 px-1">
                                   <span className="text-xs text-purple-700 font-bold uppercase">Sources</span>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-100"
-                                    onClick={() => {
-                                      const sorted = sortSourcesAZ(currentSources);
-                                      handleUpdateField(i, col.key, JSON.stringify(sorted));
-                                    }}
-                                  >
-                                    <ArrowDownAZ className="w-3 h-3 mr-1" />
-                                    Sort A-Z
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    {retiredSources.length > 0 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-200"
+                                        onClick={() => setRetiredModalRowIndex(i)}
+                                      >
+                                        🗄️ Retired ({retiredSources.length})
+                                      </Button>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-100"
+                                      onClick={() => {
+                                        const sorted = sortSourcesAZ(activeSources);
+                                        handleUpdateField(i, col.key, JSON.stringify([...sorted, ...retiredSources]));
+                                      }}
+                                    >
+                                      <ArrowDownAZ className="w-3 h-3 mr-1" />
+                                      Sort A-Z
+                                    </Button>
+                                  </div>
                                 </div>
                                 <DragDropContext
                                   onDragEnd={(result: DropResult) => {
                                     if (!result.destination) return;
-                                    const reordered = reorderSources(currentSources, result.source.index, result.destination.index);
-                                    handleUpdateField(i, col.key, JSON.stringify(reordered));
+                                    const reordered = reorderSources(activeSources, result.source.index, result.destination.index);
+                                    handleUpdateField(i, col.key, JSON.stringify([...reordered, ...retiredSources]));
                                   }}
                                 >
                                   <Droppable droppableId={`droppable-${i}-${col.key}`}>
@@ -896,7 +913,7 @@ export const AddRowModal = React.memo(
                                         ref={provided.innerRef}
                                         className="flex flex-col gap-2 mb-2"
                                       >
-                                        {currentSources.map((src: any, idx: number) => {
+                                        {activeSources.map((src: any, idx: number) => {
                                           let totalSales = 0;
                                           columns.filter(c => c.type === "sale_tracker").forEach(sc => {
                                             const sales = parseMultiSource(block[sc.key]);
@@ -926,11 +943,13 @@ export const AddRowModal = React.memo(
                                                   <label className="flex items-center gap-1 text-[10px] uppercase font-bold text-gray-500 cursor-pointer">
                                                     <input 
                                                       type="checkbox" 
-                                                      checked={retired}
+                                                      checked={false}
                                                       onChange={(e) => {
-                                                        const copy = [...currentSources];
-                                                        copy[idx] = setRetired(copy[idx], e.target.checked);
-                                                        handleUpdateField(i, col.key, JSON.stringify(copy));
+                                                        if (e.target.checked) {
+                                                          const copyActive = [...activeSources];
+                                                          copyActive[idx] = setRetired(copyActive[idx], true);
+                                                          handleUpdateField(i, col.key, JSON.stringify([...copyActive, ...retiredSources]));
+                                                        }
                                                       }}
                                                       className="cursor-pointer"
                                                     /> Retire
@@ -954,17 +973,18 @@ export const AddRowModal = React.memo(
                                                     onChange={(e) => {
                                                       e.target.style.height = 'auto';
                                                       e.target.style.height = e.target.scrollHeight + 'px';
-                                                      const copy = [...currentSources];
-                                                      const oldName = copy[idx].source;
+                                                      const copyActive = [...activeSources];
+                                                      const oldName = copyActive[idx].source;
                                                       const newName = e.target.value;
-                                                      copy[idx].source = newName;
+                                                      copyActive[idx].source = newName;
+                                                      const newAll = [...copyActive, ...retiredSources];
                                                       if (oldName !== newName) {
-                                                        handleSourceRename(i, oldName, newName, copy);
+                                                        handleSourceRename(i, oldName, newName, newAll);
                                                       } else {
                                                         handleUpdateField(
                                                           i,
                                                           col.key,
-                                                          JSON.stringify(copy),
+                                                          JSON.stringify(newAll),
                                                         );
                                                       }
                                                     }}
@@ -979,13 +999,13 @@ export const AddRowModal = React.memo(
                                           className="w-[70px] shrink-0 h-8 text-[14px] px-1 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           value={src.qty}
                                           onChange={(e) => {
-                                            const copy = [...currentSources];
-                                            copy[idx].qty =
+                                            const copyActive = [...activeSources];
+                                            copyActive[idx].qty =
                                               parseFloat(e.target.value) || 0;
                                             handleUpdateField(
                                               i,
                                               col.key,
-                                              JSON.stringify(copy),
+                                              JSON.stringify([...copyActive, ...retiredSources]),
                                             );
                                           }}
                                         />
@@ -994,14 +1014,15 @@ export const AddRowModal = React.memo(
                                             type="button"
                                             className="text-red-500 font-bold px-1 hover:text-red-700 flex-shrink-0"
                                           onClick={() => {
-                                            const copy = currentSources.filter(
+                                            const copyActive = activeSources.filter(
                                               (_: any, k: number) => k !== idx,
                                             );
+                                            const newAll = [...copyActive, ...retiredSources];
                                             handleUpdateField(
                                               i,
                                               col.key,
-                                              copy.length > 0
-                                                ? JSON.stringify(copy)
+                                              newAll.length > 0
+                                                ? JSON.stringify(newAll)
                                                 : "",
                                             );
                                           }}
@@ -1623,6 +1644,26 @@ export const AddRowModal = React.memo(
           </Button>
         </div>
       </Modal>
-    );
-  },
-);
+
+      {retiredModalRowIndex !== null && (
+        <RetiredSourcesModal
+          isOpen={true}
+          onClose={() => setRetiredModalRowIndex(null)}
+          sources={(() => {
+            const block = blocks[retiredModalRowIndex];
+            if (!block) return [];
+            const parsed = parseMultiSource(block.total_qty);
+            return splitActiveRetired(parsed).retired;
+          })()}
+          onUnretire={(sourceName) => {
+            const block = blocks[retiredModalRowIndex];
+            if (!block) return;
+            const parsed = parseMultiSource(block.total_qty);
+            const updated = parsed.map((s: any) => s.source === sourceName ? setRetired(s, false) : s);
+            handleUpdateField(retiredModalRowIndex, "total_qty", JSON.stringify(updated));
+          }}
+        />
+      )}
+    </>
+  );
+});
