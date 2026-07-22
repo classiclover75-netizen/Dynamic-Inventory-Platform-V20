@@ -447,7 +447,7 @@ export const ImagePreviewModal = React.memo(({
                 if (parsed.length === 0) {
                   displayVal = '-';
                 } else {
-                  const lines = parsed.map((s: any) => `${s.source}${isRetired(s.source) ? ' (Retired)' : ''}: ${s.qty}`);
+                  const lines = parsed.map((s: any) => `${s.source}${isRetired(s) ? ' (Retired)' : ''}: ${s.qty}`);
                   const { active } = splitActiveRetired(parsed);
                   if (active.length >= 2) {
                     lines.push(`Total: ${sumActive(parsed)}`);
@@ -468,7 +468,7 @@ export const ImagePreviewModal = React.memo(({
                   return {
                     source: ts.source,
                     remaining: (parseFloat(ts.qty) || 0) - totalSaleForSource,
-                    isRetired: isRetired(ts.source)
+                    isRetired: isRetired(ts)
                   };
                 });
 
