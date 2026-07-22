@@ -6,6 +6,7 @@ import { saveAs } from 'file-saver';
 import { useToast } from './ToastProvider';
 import { Search, ArrowLeft, FileSpreadsheet } from 'lucide-react';
 import { parseMultiSource } from '../lib/appUtils';
+import { isRetired, sumActive } from '../lib/sourceArchiveUtils';
 
 export interface ExcelExportModalProps {
   isOpen: boolean;
@@ -15,10 +16,11 @@ export interface ExcelExportModalProps {
   columns: Column[];
   rows: RowData[];
   lowStockIds?: Set<string> | null;
+  activeFilterSaleCol?: string | null;
 }
 
 export const ExcelExportModal = React.memo(({
-  isOpen, onClose, onBack, pageName, columns, rows, lowStockIds
+  isOpen, onClose, onBack, pageName, columns, rows, lowStockIds, activeFilterSaleCol
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [localRows, setLocalRows] = useState<RowData[]>(rows);
@@ -44,11 +46,11 @@ export const ExcelExportModal = React.memo(({
 
   const formatMultiSource = (sources: any[]) => {
     if (!sources || sources.length === 0) return '0';
-    if (sources.length === 1 && sources[0].source === 'Default') return String(sources[0].qty);
+    if (sources.length === 1 && sources[0].source === 'Default' && !isRetired(sources[0])) return String(sources[0].qty);
     
-    const lines = sources.map(s => `${s.source}: ${s.qty}`);
+    const lines = sources.map(s => `${s.source}: ${s.qty}${isRetired(s) ? ' (Retired)' : ''}`);
     if (sources.length > 1) {
-      const total = sources.reduce((sum, s) => sum + (parseFloat(s.qty) || 0), 0);
+      const total = sumActive(sources);
       lines.push(`Total: ${total}`);
     }
     return lines.join('\n');
@@ -74,7 +76,17 @@ export const ExcelExportModal = React.memo(({
       
       return formatMultiSource(remainingSources);
     }
-    if (col.key === 'total_qty' || col.type === 'sale_tracker') {
+    if (col.key === 'total_qty') {
+      const sources = parseMultiSource(row[col.key]);
+      let visibleSources = sources.filter((s: any) => !isRetired(s));
+      if (activeFilterSaleCol) {
+        const saleSources = parseMultiSource(row[activeFilterSaleCol]);
+        const autoRevealed = sources.filter((s: any) => isRetired(s) && saleSources.some((ss: any) => ss.source === s.source && (parseFloat(ss.qty) || 0) > 0));
+        visibleSources = [...visibleSources, ...autoRevealed];
+      }
+      return formatMultiSource(visibleSources);
+    }
+    if (col.type === 'sale_tracker') {
       const sources = parseMultiSource(row[col.key]);
       return formatMultiSource(sources);
     }

@@ -1,3 +1,4 @@
+import { isRetired, setRetired } from '../lib/sourceArchiveUtils';
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Input, Modal } from "./ui";
 import { Column, RowData } from "../types";
@@ -895,14 +896,24 @@ export const AddRowModal = React.memo(
                                         ref={provided.innerRef}
                                         className="flex flex-col gap-2 mb-2"
                                       >
-                                        {currentSources.map((src: any, idx: number) => (
+                                        {currentSources.map((src: any, idx: number) => {
+                                          let totalSales = 0;
+                                          columns.filter(c => c.type === "sale_tracker").forEach(sc => {
+                                            const sales = parseMultiSource(block[sc.key]);
+                                            const entry = sales.find((s: any) => s.source === src.source);
+                                            if (entry) totalSales += (parseFloat(entry.qty) || 0);
+                                          });
+                                          const remaining = (parseFloat(src.qty) || 0) - totalSales;
+                                          const retired = isRetired(src);
+
+                                          return (
                                           // @ts-ignore
                                           <Draggable key={`${i}-${col.key}-${idx}`} draggableId={`${i}-${col.key}-${idx}`} index={idx}>
                                             {(provided, snapshot) => (
                                               <div
                                                 ref={provided.innerRef}
                                                 {...provided.draggableProps}
-                                                className={`flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-2 rounded shadow-sm border ${snapshot.isDragging ? 'border-purple-400 shadow-md ring-1 ring-purple-200' : 'border-purple-100'}`}
+                                                className={`flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-2 rounded shadow-sm border ${snapshot.isDragging ? 'border-purple-400 shadow-md ring-1 ring-purple-200' : 'border-purple-100'} ${retired ? 'opacity-60 bg-gray-50' : ''}`}
                                                 style={provided.draggableProps.style}
                                               >
                                                 <div {...provided.dragHandleProps} className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing px-1 shrink-0">
@@ -910,6 +921,23 @@ export const AddRowModal = React.memo(
                                                 </div>
                                                 <div className="shrink-0 text-[14px] font-bold text-gray-900 w-5 flex justify-center">
                                                   {formatSourceNumber(idx)}
+                                                </div>
+                                                <div className="flex flex-col gap-1 shrink-0">
+                                                  <label className="flex items-center gap-1 text-[10px] uppercase font-bold text-gray-500 cursor-pointer">
+                                                    <input 
+                                                      type="checkbox" 
+                                                      checked={retired}
+                                                      onChange={(e) => {
+                                                        const copy = [...currentSources];
+                                                        copy[idx] = setRetired(copy[idx], e.target.checked);
+                                                        handleUpdateField(i, col.key, JSON.stringify(copy));
+                                                      }}
+                                                      className="cursor-pointer"
+                                                    /> Retire
+                                                  </label>
+                                                  {!retired && remaining <= 0 && (
+                                                    <span className="text-[9px] text-blue-500 leading-tight">Zero qty.<br/>Retire?</span>
+                                                  )}
                                                 </div>
                                                 <div className="flex-[2] min-w-[100px]">
                                                   <textarea
@@ -995,7 +1023,8 @@ export const AddRowModal = React.memo(
                                       </div>
                                             )}
                                           </Draggable>
-                                        ))}
+                                        );
+                                        })}
                                         {provided.placeholder}
                                       </div>
                                     )}

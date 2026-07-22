@@ -1,3 +1,4 @@
+import { isRetired, splitActiveRetired, sumActive } from '../lib/sourceArchiveUtils';
 import React from "react";
 import { Lock, ArrowUp, ArrowDown } from "lucide-react";
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
@@ -8,6 +9,7 @@ import { sanitizeHtml } from "../lib/sanitizeHtml";
 import { formatSourceNumber } from "../lib/multiSourceHelpers";
 
 export const TableView = ({
+  activeFilterSaleCol,
   config, rows, queries, isSecondary, showArchived, setBox1Value, setBox2Value, activeAnchor, originalRows, isGhost, ghostIds,
   state, activeConfig,
   inlineEdit, setInlineEdit,
@@ -797,32 +799,75 @@ export const TableView = ({
                                     }
 
                                     if (col.key === "total_qty") {
-                                      const totalSources =
-                                        parseMultiSource(rawVal);
+                                      const totalSources = parseMultiSource(rawVal);
+                                      const { active, retired } = splitActiveRetired(totalSources);
+                                      const autoRevealedRetired = activeFilterSaleCol ? retired.filter((r: any) => {
+                                        const saleSources = parseMultiSource(row[activeFilterSaleCol]);
+                                        return saleSources.some((ss: any) => ss.source === r.source && (parseFloat(ss.qty) || 0) > 0);
+                                      }) : [];
+                                      const hiddenRetiredCount = retired.length - autoRevealedRetired.length;
+
                                       return (
                                         <td
                                           key={col.key}
                                           {...commonProps}
                                           className={`p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${hoverClass}`}
                                         >
-                                          <div className="flex flex-col gap-1 justify-center">
-                                            {totalSources.map(
+                                          <div className="flex flex-col gap-1 justify-center relative group">
+                                            {active.map(
                                               (s: any, idx: number) => (
                                                 <div
                                                   key={idx}
                                                   className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color}`}
                                                 >
                                                   <span className="opacity-70">
-                                                    <span className="mr-1">{formatSourceNumber(idx)}</span>{s.source}:
+                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
                                                   </span>{" "}
                                                   <span>{s.qty}</span>
                                                 </div>
                                               ),
                                             )}
-                                            {totalSources.length >= 2 && (
+                                            {autoRevealedRetired.map(
+                                              (s: any, idx: number) => (
+                                                <div
+                                                  key={`ret-auto-${idx}`}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 opacity-60 bg-gray-50 border-gray-200`}
+                                                >
+                                                  <span className="opacity-70 text-gray-500">
+                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
+                                                  </span>{" "}
+                                                  <span className="text-gray-500">{s.qty}</span>
+                                                  <span className="ml-auto text-[9px] uppercase tracking-wider bg-gray-200 text-gray-600 px-1 rounded">Retired</span>
+                                                </div>
+                                              ),
+                                            )}
+                                            {hiddenRetiredCount > 0 && (
+                                              <div className="group/ret mt-0.5">
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase cursor-pointer hover:text-gray-600 text-center py-0.5 border border-dashed border-gray-200 rounded">
+                                                  Show hidden retired ({hiddenRetiredCount})
+                                                </div>
+                                                <div className="hidden group-hover/ret:flex flex-col gap-1 mt-1">
+                                                  {retired.filter((r: any) => !autoRevealedRetired.includes(r)).map(
+                                                    (s: any, idx: number) => (
+                                                      <div
+                                                        key={`ret-hidden-${idx}`}
+                                                        className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 opacity-50 bg-gray-50 border-gray-200`}
+                                                      >
+                                                        <span className="opacity-70 text-gray-500">
+                                                          <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
+                                                        </span>{" "}
+                                                        <span className="text-gray-500">{s.qty}</span>
+                                                        <span className="ml-auto text-[9px] uppercase tracking-wider bg-gray-200 text-gray-600 px-1 rounded">Retired</span>
+                                                      </div>
+                                                    ),
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                            {active.length >= 2 && (
                                               <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
                                                 <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
-                                                <span>{totalSources.reduce((sum, s) => sum + (Number(s.qty) || 0), 0)}</span>
+                                                <span>{sumActive(totalSources)}</span>
                                               </div>
                                             )}
                                           </div>

@@ -2208,6 +2208,7 @@ function AppContent() {
             queries={finalQueries}
             isSecondary={isSecondaryActive}
             originalRows={originalRows}
+            activeFilterSaleCol={activeFilterSaleCol}
             isGhost={isGhostActive}
             ghostIds={ghostIds}
             showArchived={showArchived}
@@ -3011,6 +3012,7 @@ function AppContent() {
 
       <ExcelExportModal
         isOpen={modals.excelExport}
+        activeFilterSaleCol={activeFilterSaleCol}
         onClose={closeAllModals}
         onBack={() => {
           closeAllModals();
