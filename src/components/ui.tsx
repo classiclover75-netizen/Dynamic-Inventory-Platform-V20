@@ -107,10 +107,10 @@ export const SelectableDropdown = ({
   );
 };
 
-export const Modal = ({ isOpen, onClose, onBack, title, children, width = 'min(900px, 96vw)', noScroll = false }: { isOpen: boolean; onClose: () => void; onBack?: () => void; title: string | React.ReactNode; children: React.ReactNode; width?: string; noScroll?: boolean }) => {
+export const Modal = ({ isOpen, onClose, onBack, title, children, width = 'min(900px, 96vw)', noScroll = false, zIndex }: { isOpen: boolean; onClose: () => void; onBack?: () => void; title: string | React.ReactNode; children: React.ReactNode; width?: string; noScroll?: boolean; zIndex?: string; }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-3.5 z-50">
+    <div className={`fixed inset-0 bg-black/45 flex items-center justify-center p-3.5 ${zIndex || "z-50"}`}>
       <div 
         className="bg-white rounded-lg border border-[#cfd8dc] p-3.5 max-h-[90vh] overflow-hidden flex flex-col"
         style={{ width }}

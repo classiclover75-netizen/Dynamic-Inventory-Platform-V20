@@ -1014,17 +1014,24 @@ export const AddRowModal = React.memo(
                                             type="button"
                                             className="text-red-500 font-bold px-1 hover:text-red-700 flex-shrink-0"
                                           onClick={() => {
-                                            const copyActive = activeSources.filter(
-                                              (_: any, k: number) => k !== idx,
-                                            );
-                                            const newAll = [...copyActive, ...retiredSources];
-                                            handleUpdateField(
-                                              i,
-                                              col.key,
-                                              newAll.length > 0
-                                                ? JSON.stringify(newAll)
-                                                : "",
-                                            );
+                                            setConfirmationModal({
+                                              isOpen: true,
+                                              title: "Confirm Source Deletion",
+                                              message: `Are you sure you want to delete "${src.source}"? This will also permanently remove its historical sales data from all sale columns. This cannot be undone. Consider retiring the source instead if you want to keep the historical data.`,
+                                              onConfirm: () => {
+                                                const copyActive = activeSources.filter(
+                                                  (_: any, k: number) => k !== idx,
+                                                );
+                                                const newAll = [...copyActive, ...retiredSources];
+                                                handleUpdateField(
+                                                  i,
+                                                  col.key,
+                                                  newAll.length > 0
+                                                    ? JSON.stringify(newAll)
+                                                    : "",
+                                                );
+                                              }
+                                            });
                                           }}
                                           title="Delete Option"
                                         >

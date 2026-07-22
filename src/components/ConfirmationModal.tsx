@@ -17,7 +17,7 @@ export const ConfirmationModal = React.memo(({
   confirmLabel?: string;
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} width="400px">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} width="400px" zIndex="z-[70]">
       <div className="p-2">
         <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap max-h-[60vh] overflow-y-auto">{message}</p>
         <div className="mt-4 flex justify-end gap-2 sticky bottom-0 bg-white py-3 border-t border-gray-100 z-10 -mb-1">
