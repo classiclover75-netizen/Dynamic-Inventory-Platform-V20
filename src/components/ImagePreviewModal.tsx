@@ -4,8 +4,11 @@ import { Column, RowData } from '../types';
 import { useToast } from './ToastProvider';
 import { Edit, RefreshCw, X, ArrowLeft, ZoomIn, ZoomOut, RotateCcw, Trash2 } from 'lucide-react';
 import { CopyPopupNotification } from './CopyPopupNotification';
+import { parseMultiSource } from '../lib/appUtils';
+import { isRetired, sumActive, splitActiveRetired } from '../lib/sourceArchiveUtils';
 
 export const ImagePreviewModal = React.memo(({
+
   isOpen,
   onClose,
   onBack,
@@ -439,6 +442,47 @@ export const ImagePreviewModal = React.memo(({
                 }
               } else if (col.type === 'image') {
                 displayVal = rawVal ? 'Image attached' : 'No image';
+              } else if (col.type === 'sale_tracker' || col.key === 'total_qty') {
+                const parsed = parseMultiSource(rawVal);
+                if (parsed.length === 0) {
+                  displayVal = '-';
+                } else {
+                  const lines = parsed.map((s: any) => `${s.source}${isRetired(s.source) ? ' (Retired)' : ''}: ${s.qty}`);
+                  const { active } = splitActiveRetired(parsed);
+                  if (active.length >= 2) {
+                    lines.push(`Total: ${sumActive(parsed)}`);
+                  }
+                  displayVal = lines.join('\n');
+                }
+              } else if (col.key === 'remaining_qty') {
+                const totalSources = parseMultiSource(row.total_qty);
+                const saleCols = columns.filter(c => c.type === 'sale_tracker');
+                
+                const remainingSources = totalSources.map((ts: any) => {
+                  let totalSaleForSource = 0;
+                  saleCols.forEach(sc => {
+                    const sales = parseMultiSource(row[sc.key]);
+                    const saleEntry = sales.find((s: any) => s.source === ts.source);
+                    if (saleEntry) totalSaleForSource += parseFloat(saleEntry.qty) || 0;
+                  });
+                  return {
+                    source: ts.source,
+                    remaining: (parseFloat(ts.qty) || 0) - totalSaleForSource,
+                    isRetired: isRetired(ts.source)
+                  };
+                });
+
+                if (remainingSources.length === 0) {
+                  displayVal = '-';
+                } else {
+                  const lines = remainingSources.map((s: any) => `${s.source}${s.isRetired ? ' (Retired)' : ''}: ${s.remaining}`);
+                  const activeSources = remainingSources.filter((s: any) => !s.isRetired);
+                  if (activeSources.length >= 2) {
+                    const activeSum = activeSources.reduce((sum: number, s: any) => sum + s.remaining, 0);
+                    lines.push(`Total: ${activeSum}`);
+                  }
+                  displayVal = lines.join('\n');
+                }
               } else if (Array.isArray(rawVal)) {
                 displayVal = rawVal.join('\n') || '-';
               } else {
