@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button, Input, Modal } from './ui';
 import { Column, PageConfig } from '../types';
-import { Edit, Trash2, Plus, GripVertical, RefreshCw, ArrowUpDown, Lock, Sliders } from 'lucide-react';
+import { Edit, Trash2, Plus, GripVertical, RefreshCw, ArrowUpDown, Lock, Sliders, Search } from 'lucide-react';
 import { ColumnSortSettingsModal } from './ColumnSortSettingsModal';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -486,18 +486,21 @@ export const ActivePageSettingsModal = React.memo(({
           </div>
         )}
 
-        <div className="mt-4 mb-2 relative">
+        <div className="mt-4 mb-2 relative flex items-center">
+          <div className="absolute left-2.5 text-blue-500">
+            <Search size={14} />
+          </div>
           <Input 
             type="text" 
             placeholder="Search column name..." 
             value={columnSearch} 
             onChange={e => setColumnSearch(e.target.value)} 
-            className="w-full text-xs p-2 pr-8 border border-gray-300 rounded"
+            className="w-full text-xs py-2 pl-8 pr-8 border-2 border-blue-400 bg-blue-50/50 rounded focus:border-blue-500 focus:bg-blue-50 focus:ring-1 focus:ring-blue-500 outline-none transition-colors placeholder-blue-300 text-blue-900"
           />
           {columnSearch && (
             <button 
               onClick={() => setColumnSearch('')} 
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 font-bold border-none bg-transparent cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-400 hover:text-blue-600 font-bold border-none bg-transparent cursor-pointer flex items-center justify-center p-1"
               title="Clear search"
             >✕</button>
           )}
