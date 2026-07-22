@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { useToast } from './ToastProvider';
 import { Search, ArrowLeft, FileSpreadsheet } from 'lucide-react';
+import { parseMultiSource } from '../lib/appUtils';
 
 export interface ExcelExportModalProps {
   isOpen: boolean;
@@ -41,15 +42,41 @@ export const ExcelExportModal = React.memo(({
     return `/uploads/${imgData}`;
   };
 
+  const formatMultiSource = (sources: any[]) => {
+    if (!sources || sources.length === 0) return '0';
+    if (sources.length === 1 && sources[0].source === 'Default') return String(sources[0].qty);
+    
+    const lines = sources.map(s => `${s.source}: ${s.qty}`);
+    if (sources.length > 1) {
+      const total = sources.reduce((sum, s) => sum + (parseFloat(s.qty) || 0), 0);
+      lines.push(`Total: ${total}`);
+    }
+    return lines.join('\n');
+  };
+
   const getCellValue = (row: RowData, col: Column) => {
     if (col.key === 'remaining_qty') {
-      const total = parseFloat(String(row.total_qty || 0)) || 0;
+      const totalSources = parseMultiSource(row.total_qty);
       const saleCols = columns.filter(c => c.type === 'sale_tracker');
-      const totalSales = saleCols.reduce((sum, c) => sum + (parseFloat(String(row[c.key] || 0)) || 0), 0);
-      return String(total - totalSales);
+      
+      const remainingSources = totalSources.map((ts: any) => {
+        let totalSaleForSource = 0;
+        saleCols.forEach(sc => {
+          const sales = parseMultiSource(row[sc.key]);
+          const match = sales.find((s: any) => s.source === ts.source);
+          if (match) totalSaleForSource += (parseFloat(match.qty) || 0);
+        });
+        return {
+          ...ts,
+          qty: (parseFloat(ts.qty) || 0) - totalSaleForSource
+        };
+      });
+      
+      return formatMultiSource(remainingSources);
     }
-    if (col.type === 'sale_tracker') {
-      return String(row[col.key] || '0');
+    if (col.key === 'total_qty' || col.type === 'sale_tracker') {
+      const sources = parseMultiSource(row[col.key]);
+      return formatMultiSource(sources);
     }
     return row[col.key];
   };
@@ -293,8 +320,8 @@ export const ExcelExportModal = React.memo(({
           if (Array.isArray(val)) {
             val = val.join(', ');
           }
-          let textVal = String(val || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          html += `<td>${textVal}</td>`;
+          let textVal = String(val || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+          html += `<td style="white-space: pre-wrap;">${textVal}</td>`;
         }
       }
       
@@ -379,6 +406,7 @@ export const ExcelExportModal = React.memo(({
         });
         
         const excelRow = worksheet.addRow(rowValues);
+        excelRow.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
         
         // Image kay liye row height badi ki (First code requirement)
         excelRow.height = 80; 
