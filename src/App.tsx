@@ -2152,7 +2152,7 @@ function AppContent() {
             {/* Sort Dropdown */}
             <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
               <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                ↕️ Sort:
+                ↕️ Sort by Sale Column:
               </span>
               <select
                 value={trackerSort}
