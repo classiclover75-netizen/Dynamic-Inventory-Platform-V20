@@ -68,6 +68,7 @@ export const ActivePageSettingsModal = React.memo(({
   const [minStockAlert, setMinStockAlert] = useState(pageConfig?.minStockAlert ?? 0);
   const [sortSettingsColumn, setSortSettingsColumn] = useState<Column | null>(null);
   const [pendingDeleteSaleCol, setPendingDeleteSaleCol] = useState<Column | null>(null);
+  const [columnSearch, setColumnSearch] = useState('');
   const [pageStats, setPageStats] = useState<{ totalRows: number, totalColumns: number, totalImages: number, duplicateImages: number } | null>(null);
 
   const calculateStats = () => {
@@ -485,9 +486,182 @@ export const ActivePageSettingsModal = React.memo(({
           </div>
         )}
 
+        <div className="mt-4 mb-2 relative">
+          <Input 
+            type="text" 
+            placeholder="Search column name..." 
+            value={columnSearch} 
+            onChange={e => setColumnSearch(e.target.value)} 
+            className="w-full text-xs p-2 pr-8 border border-gray-300 rounded"
+          />
+          {columnSearch && (
+            <button 
+              onClick={() => setColumnSearch('')} 
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 font-bold border-none bg-transparent cursor-pointer"
+              title="Clear search"
+            >✕</button>
+          )}
+        </div>
         <div className="mt-2 text-[11px] text-[#78909c] leading-snug">
           New columns will be added to the active page. <b>Row No.</b> always remains first and locked. You can drag and drop columns here to reorder them.
         </div>
+        {columnSearch ? (
+          <div className="mt-2.5 max-h-[300px] overflow-auto border border-gray-200 rounded bg-white p-1.5">
+            {(() => {
+              const lowerSearch = columnSearch.toLowerCase();
+              const filtered = localColumns.map((c, i) => ({ c, i })).filter(({ c }) => c.name.toLowerCase().includes(lowerSearch) || c.key.toLowerCase().includes(lowerSearch));
+              if (filtered.length === 0) {
+                return <div className="text-[11px] text-[#90a4ae] p-2">No matching columns.</div>;
+              }
+              return filtered.map(({ c, i }) => (
+                <div key={c.key} className="flex justify-between items-center text-[14px] p-1 border-b border-gray-100 hover:bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    {c.movable !== false ? (
+                      <>
+                        <input 
+                          type="number" 
+                          value={i + 1}
+                          disabled
+                          className="w-12 text-center text-xs border border-gray-200 rounded p-1 bg-gray-50 text-gray-400 cursor-not-allowed"
+                          title="Clear the search to reorder columns"
+                        />
+                        <div className="text-gray-200 cursor-not-allowed" title="Clear the search to reorder columns">
+                          <GripVertical size={16} />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 text-center text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded p-1" title="Locked column">1</div>
+                        <div className="w-[16px]"></div>
+                      </>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <b>{c.name}</b> <span className="text-[#607d8b]">({c.type})</span>
+                      {c.sortEnabled && c.key !== 'sr' && <ArrowUpDown size={14} className="text-blue-500" title="Sorting Enabled" />}
+                      {c.sortLocked && c.key !== 'sr' && <Lock size={14} className="text-gray-500" title="Sorting Locked" />}
+                      {c.sortPriority && c.key !== 'sr' && <span className="text-[10px] font-bold px-1 rounded bg-blue-100 text-blue-700" title={`Priority ${c.sortPriority}`}>P{c.sortPriority}</span>}
+                      {c.locked && ' • Locked'}
+                      {c.type === 'text_with_copy_button' && ' • Multi input + per-item copy'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {c.key !== 'sr' && (
+                      <button 
+                        className="border-0 bg-transparent cursor-pointer text-[#607d8b] hover:text-gray-800 p-1 flex items-center justify-center"
+                        onClick={() => setSortSettingsColumn(c)}
+                        title="Sort Settings"
+                      >
+                        <Sliders size={16} />
+                      </button>
+                    )}
+                    {!c.locked && (
+                      <div className="flex items-center gap-1">
+                        {pendingDeleteSaleCol?.key === c.key ? (
+                          <div className="flex items-center gap-1.5 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 shadow-sm ml-1">
+                            <button 
+                              onClick={() => {
+                                setPendingDeleteSaleCol(null);
+                                setConfirmationModal({
+                                  isOpen: true,
+                                  title: "Delete Confirmation (1/2)",
+                                  message: `Are you sure you want to normal delete "${c.name}"? (Use this if created by mistake)`,
+                                  onConfirm: () => {
+                                    setTimeout(() => {
+                                      setConfirmationModal({
+                                        isOpen: true,
+                                        title: "Final Confirmation (2/2)",
+                                        message: `Are you ABSOLUTELY sure? This will remove the column and revert remaining quantity.`,
+                                        onConfirm: () => {
+                                          if (onDeleteColumn) {
+                                            onDeleteColumn(c, 'normal');
+                                          } else {
+                                            const cols = localColumns.filter(col => col.key !== c.key);
+                                            setLocalColumns(cols);
+                                            saveConfig({ columns: cols }, false);
+                                          }
+                                        }
+                                      });
+                                    }, 400); // Trigger 2nd confirmation after a short delay
+                                  }
+                                });
+                              }}
+                              className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 px-2 py-1 rounded text-[10px] font-bold transition-colors"
+                              title="Normal Delete (Mistake)"
+                            >
+                              🗑️ Normal
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setPendingDeleteSaleCol(null);
+                                setConfirmationModal({
+                                  isOpen: true,
+                                  title: "Smart Delete Confirmation",
+                                  message: `Are you sure you want to Smart Delete "${c.name}"? This permanently deducts sales from Total Qty before deleting to keep stock accurate.`,
+                                  onConfirm: () => {
+                                    if (onDeleteColumn) {
+                                      onDeleteColumn(c, 'smart');
+                                    }
+                                  }
+                                });
+                              }}
+                              className="bg-red-600 text-white hover:bg-red-700 px-2 py-1 rounded text-[10px] font-bold transition-colors shadow-sm"
+                              title="Smart Delete (Purge Old Data)"
+                            >
+                              🧠 Smart
+                            </button>
+                            <button 
+                              onClick={() => setPendingDeleteSaleCol(null)}
+                              className="text-gray-400 hover:text-gray-700 px-1 cursor-pointer border-none bg-transparent font-bold text-xs"
+                              title="Cancel"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button 
+                              className="border-0 bg-transparent cursor-pointer text-[#2b579a] hover:text-blue-800 p-1 flex items-center justify-center"
+                              onClick={() => onEditColumn(c)}
+                              title="Edit Column"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button 
+                              className="border-0 bg-transparent cursor-pointer text-red-600 hover:text-red-800 p-1 flex items-center justify-center"
+                              onClick={() => {
+                                if (c.type === 'sale_tracker') {
+                                  setPendingDeleteSaleCol(c);
+                                } else {
+                                  setConfirmationModal({
+                                    isOpen: true,
+                                    title: "Delete Column",
+                                    message: `Are you sure you want to delete "${c.name}"?`,
+                                    onConfirm: () => {
+                                      if (onDeleteColumn) {
+                                        onDeleteColumn(c, 'normal');
+                                      } else {
+                                        const cols = localColumns.filter(col => col.key !== c.key);
+                                        setLocalColumns(cols);
+                                        saveConfig({ columns: cols }, false);
+                                      }
+                                    }
+                                  });
+                                }
+                              }}
+                              title="Delete Column"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="columns-droppable">
             {(provided) => (
@@ -663,6 +837,7 @@ export const ActivePageSettingsModal = React.memo(({
             )}
           </Droppable>
         </DragDropContext>
+        )}
       </div>
 
       <ColumnSortSettingsModal
