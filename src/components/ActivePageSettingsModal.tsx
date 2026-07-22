@@ -445,24 +445,26 @@ export const ActivePageSettingsModal = React.memo(({
           />
         </div>
 
-        <div className="flex gap-2 mb-2">
-          {!pageConfig?.linkedSourcePage && <Button variant="outline" className="flex-1 justify-center text-orange-600 border-orange-600 hover:bg-orange-50" onClick={onFindDuplicates}>
-            🔍 Find Duplicates
-          </Button>}
-          <Button variant="outline" className="flex-1 justify-center text-red-600 border-red-600 hover:bg-red-50" onClick={() => {
-            setConfirmationModal({
-              isOpen: true,
-              title: "Confirm Clear Active Page Data",
-              message: "Are you sure you want to permanently delete ALL rows on this page? This action cannot be undone.",
-              onConfirm: () => {
-                onClearPageData();
-                onClose();
-              }
-            });
-          }}>
-            <Trash2 size={14} /> Clear Active Page All Data 
-          </Button>
-        </div>
+        {!pageConfig?.linkedSourcePage && (
+          <div className="flex gap-2 mb-2">
+            <Button variant="outline" className="flex-1 justify-center text-orange-600 border-orange-600 hover:bg-orange-50" onClick={onFindDuplicates}>
+              🔍 Find Duplicates
+            </Button>
+            <Button variant="outline" className="flex-1 justify-center text-red-600 border-red-600 hover:bg-red-50" onClick={() => {
+              setConfirmationModal({
+                isOpen: true,
+                title: "Confirm Clear Active Page Data",
+                message: "Are you sure you want to permanently delete ALL rows on this page? This action cannot be undone.",
+                onConfirm: () => {
+                  onClearPageData();
+                  onClose();
+                }
+              });
+            }}>
+              <Trash2 size={14} /> Clear Active Page All Data 
+            </Button>
+          </div>
+        )}
 
         <div className="flex gap-2 mb-2">
           <Button variant="outline" className="flex-1 justify-center text-purple-600 border-purple-600 hover:bg-purple-50" onClick={calculateStats}>
