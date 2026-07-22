@@ -46,6 +46,7 @@ import { ExportChoiceModal } from "./components/ExportChoiceModal";
 import { DuplicateFinderModal } from "./components/DuplicateFinderModal";
 import { GlobalCombinationCopyBoxes } from "./components/GlobalCombinationCopyBoxes";
 import { GlobalCopyBoxesSettingsModal } from "./components/GlobalCopyBoxesSettingsModal";
+import { QuickRangePanel } from "./components/QuickRangePanel";
 import { TopHeaderBar } from "./components/TopHeaderBar";
 import { PageTabsBar } from "./components/PageTabsBar";
 import { SearchBarsSection } from "./components/SearchBarsSection";
@@ -1261,7 +1262,7 @@ function AppContent() {
       if (remIdx !== -1) {
         cols.splice(remIdx + 1, 0, {
           key: "custom_temp_sum",
-          name: `Sum (${activeCustomSum.startName} to ${activeCustomSum.endName})`,
+          name: activeCustomSum.endName ? `Sum (${activeCustomSum.startName} to ${activeCustomSum.endName})` : activeCustomSum.startName,
           type: "number",
           locked: true,
           sortEnabled: true,
@@ -2653,6 +2654,20 @@ function AppContent() {
               Remaining Qty.
             </p>
 
+            <QuickRangePanel 
+              saleColumns={activeConfig.columns.filter(c => c.type === 'sale_tracker')}
+              onSelectQuickRange={(keys, startName, endName) => {
+                setActiveCustomSum({
+                  startName,
+                  endName,
+                  keys,
+                  selectedSources: sumSelectedSources
+                });
+                setIsSumModalOpen(false);
+                toast(`Sum range calculated for ${startName}`);
+              }}
+              onToast={toast}
+            />
             <div className="flex flex-row gap-4 mb-6">
               {/* Start Column Group */}
               <div className="flex-1 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
