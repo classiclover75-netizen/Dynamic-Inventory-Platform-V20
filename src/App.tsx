@@ -1504,9 +1504,10 @@ function AppContent() {
           : saleCols.length > 0
             ? saleCols[0].key
             : null;
-      const getNum = (v: any) => {
+      const getNum = (row: any, v: any) => {
+        const validSources = new Set(parseMultiSource(row.total_qty).map((ts: any) => ts.source));
         return parseMultiSource(v).reduce(
-          (sum: number, s: any) => sum + (parseFloat(s.qty) || 0),
+          (sum: number, s: any) => sum + (validSources.has(s.source) ? (parseFloat(s.qty) || 0) : 0),
           0,
         );
       };
@@ -1538,7 +1539,7 @@ function AppContent() {
         rows = rows.filter((row) => {
           const stats = getStats(row);
           const minStock = activeConfig.minStockAlert || 5;
-          const latestSaleVal = latestSaleCol ? getNum(row[latestSaleCol]) : 0;
+          const latestSaleVal = latestSaleCol ? getNum(row, row[latestSaleCol]) : 0;
 
           if (trackerFilter === "low") {
             return stats.remaining <= minStock;
@@ -1555,7 +1556,7 @@ function AppContent() {
             rows = [...rows];
           }
           rows.sort((a, b) => {
-            const diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
+            const diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
             return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
           });
         }
@@ -1568,8 +1569,8 @@ function AppContent() {
         }
         rows.sort((a, b) => {
           let diff = 0;
-          if (trackerSort === "high") diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
-          else if (trackerSort === "low") diff = getNum(a[latestSaleCol]) - getNum(b[latestSaleCol]);
+          if (trackerSort === "high") diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
+          else if (trackerSort === "low") diff = getNum(a, a[latestSaleCol]) - getNum(b, b[latestSaleCol]);
           return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
         });
       }
@@ -1579,8 +1580,8 @@ function AppContent() {
           rows = [...rows];
         }
         rows.sort((a, b) => {
-          const totalSalesA = saleCols.reduce((sum, c) => sum + getNum(a[c.key]), 0);
-          const totalSalesB = saleCols.reduce((sum, c) => sum + getNum(b[c.key]), 0);
+          const totalSalesA = saleCols.reduce((sum, c) => sum + getNum(a, a[c.key]), 0);
+          const totalSalesB = saleCols.reduce((sum, c) => sum + getNum(b, b[c.key]), 0);
           const diff = totalSalesB - totalSalesA;
           return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
         });
@@ -1668,9 +1669,10 @@ function AppContent() {
           : saleCols.length > 0
             ? saleCols[0].key
             : null;
-      const getNum = (v: any) => {
+      const getNum = (row: any, v: any) => {
+        const validSources = new Set(parseMultiSource(row.total_qty).map((ts: any) => ts.source));
         return parseMultiSource(v).reduce(
-          (sum: number, s: any) => sum + (parseFloat(s.qty) || 0),
+          (sum: number, s: any) => sum + (validSources.has(s.source) ? (parseFloat(s.qty) || 0) : 0),
           0,
         );
       };
@@ -1702,7 +1704,7 @@ function AppContent() {
         rows = rows.filter((row) => {
           const stats = getStats(row);
           const minStock = secConfig.minStockAlert || 5;
-          const latestSaleVal = latestSaleCol ? getNum(row[latestSaleCol]) : 0;
+          const latestSaleVal = latestSaleCol ? getNum(row, row[latestSaleCol]) : 0;
 
           if (trackerFilter === "low") {
             return stats.remaining <= minStock;
@@ -1719,7 +1721,7 @@ function AppContent() {
             rows = [...rows];
           }
           rows.sort((a, b) => {
-            const diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
+            const diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
             return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
           });
         }
@@ -1732,8 +1734,8 @@ function AppContent() {
         }
         rows.sort((a, b) => {
           let diff = 0;
-          if (trackerSort === "high") diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
-          else if (trackerSort === "low") diff = getNum(a[latestSaleCol]) - getNum(b[latestSaleCol]);
+          if (trackerSort === "high") diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
+          else if (trackerSort === "low") diff = getNum(a, a[latestSaleCol]) - getNum(b, b[latestSaleCol]);
           return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
         });
       }
@@ -2066,17 +2068,19 @@ function AppContent() {
       );
       const ids = new Set<string>();
       trackerRows.forEach((row) => {
-        const getNum = (v: any) =>
-          parseMultiSource(v).reduce(
-            (sum: number, s: any) => sum + (parseFloat(s.qty) || 0),
-            0,
-          );
-        const total = getNum(row.total_qty);
-        const totalSales = saleCols.reduce(
-          (sum, c) => sum + getNum(row[c.key]),
-          0,
-        );
-        const remaining = total - totalSales;
+        const totalSources = parseMultiSource(row.total_qty);
+        let remaining = 0;
+        totalSources.forEach((ts: any) => {
+          const tQty = parseFloat(ts.qty) || 0;
+          let totalSaleForSource = 0;
+          saleCols.forEach((sc: any) => {
+            const sales = parseMultiSource(row[sc.key]);
+            const saleEntry = sales.find((s: any) => s.source === ts.source);
+            if (saleEntry) totalSaleForSource += (parseFloat(saleEntry.qty) || 0);
+          });
+          remaining += (tQty - totalSaleForSource);
+        });
+        
         if (remaining <= minStock) {
           ids.add(String(row.id));
         }

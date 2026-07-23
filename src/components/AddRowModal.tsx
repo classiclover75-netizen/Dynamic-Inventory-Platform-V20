@@ -577,55 +577,56 @@ export const AddRowModal = React.memo(
         const block = blocks[i];
         
         // Self-heal: Total Qty is the authoritative source list
-        if (block["total_qty"]) {
-           let totalSourcesArr = parseMultiSource(block["total_qty"]);
-           let totalChanged = false;
-           const uniqueTotal = new Map();
-           totalSourcesArr.forEach((s: any) => {
-               if (uniqueTotal.has(s.source)) {
-                   totalChanged = true;
-                   uniqueTotal.get(s.source).qty = (Number(uniqueTotal.get(s.source).qty) || 0) + (Number(s.qty) || 0);
-               } else {
-                   uniqueTotal.set(s.source, { ...s, qty: Number(s.qty) || 0 });
-               }
-           });
-           if (totalChanged) {
-               totalSourcesArr = Array.from(uniqueTotal.values());
-               block["total_qty"] = JSON.stringify(totalSourcesArr);
-           }
-           const totalSources = totalSourcesArr.map((s: any) => s.source);
-           columns.filter(c => c.type === "sale_tracker").forEach(col => {
-             if (block[col.key]) {
-                let saleSources = parseMultiSource(block[col.key]);
-                let changed = false;
-                
-                const filtered = saleSources.filter((s: any) => totalSources.includes(s.source));
-                if (filtered.length !== saleSources.length) {
-                   saleSources = filtered;
-                   changed = true;
+        const saleTrackerCols = columns.filter(c => c.type === "sale_tracker");
+        if (saleTrackerCols.length > 0) {
+            let totalSourcesArr = parseMultiSource(block["total_qty"] || "");
+            let totalChanged = false;
+            const uniqueTotal = new Map();
+            totalSourcesArr.forEach((s: any) => {
+                if (uniqueTotal.has(s.source)) {
+                    totalChanged = true;
+                    uniqueTotal.get(s.source).qty = (Number(uniqueTotal.get(s.source).qty) || 0) + (Number(s.qty) || 0);
+                } else {
+                    uniqueTotal.set(s.source, { ...s, qty: Number(s.qty) || 0 });
                 }
-                
-                const uniqueSources = new Map();
-                let hasDuplicates = false;
-                saleSources.forEach((s: any) => {
-                   if (uniqueSources.has(s.source)) {
-                      hasDuplicates = true;
-                      uniqueSources.get(s.source).qty = (Number(uniqueSources.get(s.source).qty) || 0) + (Number(s.qty) || 0);
-                   } else {
-                      uniqueSources.set(s.source, { ...s, qty: Number(s.qty) || 0 });
-                   }
-                });
-                
-                if (hasDuplicates) {
-                   saleSources = Array.from(uniqueSources.values());
-                   changed = true;
-                }
-                
-                if (changed) {
-                   block[col.key] = saleSources.length > 0 ? JSON.stringify(saleSources) : "";
-                }
-             }
-           });
+            });
+            if (totalChanged) {
+                totalSourcesArr = Array.from(uniqueTotal.values());
+                block["total_qty"] = JSON.stringify(totalSourcesArr);
+            }
+            const totalSources = totalSourcesArr.map((s: any) => s.source);
+            saleTrackerCols.forEach(col => {
+              if (block[col.key]) {
+                 let saleSources = parseMultiSource(block[col.key]);
+                 let changed = false;
+                 
+                 const filtered = saleSources.filter((s: any) => totalSources.includes(s.source));
+                 if (filtered.length !== saleSources.length) {
+                    saleSources = filtered;
+                    changed = true;
+                 }
+                 
+                 const uniqueSources = new Map();
+                 let hasDuplicates = false;
+                 saleSources.forEach((s: any) => {
+                    if (uniqueSources.has(s.source)) {
+                       hasDuplicates = true;
+                       uniqueSources.get(s.source).qty = (Number(uniqueSources.get(s.source).qty) || 0) + (Number(s.qty) || 0);
+                    } else {
+                       uniqueSources.set(s.source, { ...s, qty: Number(s.qty) || 0 });
+                    }
+                 });
+                 
+                 if (hasDuplicates) {
+                    saleSources = Array.from(uniqueSources.values());
+                    changed = true;
+                 }
+                 
+                 if (changed) {
+                    block[col.key] = saleSources.length > 0 ? JSON.stringify(saleSources) : "";
+                 }
+              }
+            });
         }
 
         const payload: RowData = {
@@ -1023,13 +1024,25 @@ export const AddRowModal = React.memo(
                                                   (_: any, k: number) => k !== idx,
                                                 );
                                                 const newAll = [...copyActive, ...retiredSources];
-                                                handleUpdateField(
-                                                  i,
-                                                  col.key,
-                                                  newAll.length > 0
-                                                    ? JSON.stringify(newAll)
-                                                    : "",
-                                                );
+                                                
+                                                const newBlocks = [...blocks];
+                                                const block = { ...newBlocks[i] };
+                                                
+                                                block[col.key] = newAll.length > 0 ? JSON.stringify(newAll) : "";
+                                                
+                                                // Immediate purge from all sale_tracker columns
+                                                columns.filter(c => c.type === "sale_tracker").forEach(saleCol => {
+                                                  if (block[saleCol.key]) {
+                                                    let saleSources = parseMultiSource(block[saleCol.key]);
+                                                    const filtered = saleSources.filter((s: any) => s.source !== src.source);
+                                                    if (filtered.length !== saleSources.length) {
+                                                      block[saleCol.key] = filtered.length > 0 ? JSON.stringify(filtered) : "";
+                                                    }
+                                                  }
+                                                });
+                                                
+                                                newBlocks[i] = block;
+                                                setBlocks(newBlocks);
                                               }
                                             });
                                           }}
