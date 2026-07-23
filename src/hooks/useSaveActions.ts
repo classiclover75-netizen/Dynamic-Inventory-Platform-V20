@@ -15,8 +15,9 @@ export function useSaveActions(deps: {
   setReturnToImagePreview: any;
   returnToSettings: any;
   setReturnToSettings: any;
+  refetchAndHydrateState?: any;
 }) {
-  const { state, setState, toast, toggleModal, editingRowId, setEditingRowId, setConfirmationModal, setPrimarySearchTags, primParentRef, returnToImagePreview, setReturnToImagePreview, returnToSettings, setReturnToSettings } = deps;
+  const { state, setState, toast, toggleModal, editingRowId, setEditingRowId, setConfirmationModal, setPrimarySearchTags, primParentRef, returnToImagePreview, setReturnToImagePreview, returnToSettings, setReturnToSettings, refetchAndHydrateState } = deps;
   const handleSaveActivePageSettings = async (
     config: PageConfig,
     closeModal: boolean = true,
@@ -76,6 +77,14 @@ export function useSaveActions(deps: {
             });
             return;
           }
+        } else if (response.status === 404) {
+          toast("This data was changed elsewhere. Refreshing to the latest version… please redo your change.");
+          if (refetchAndHydrateState) {
+            await refetchAndHydrateState();
+          }
+          toggleModal("addRow", false);
+          setEditingRowId(null);
+          return;
         }
         throw new Error("Database failed to save");
       }

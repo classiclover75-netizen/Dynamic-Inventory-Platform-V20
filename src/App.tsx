@@ -339,6 +339,7 @@ function AppContent() {
     handleVerifiedExport,
     handleImportPageData,
     handleImportData,
+    refetchAndHydrateState,
   } = useImportExport({
     state,
     setState,
@@ -871,6 +872,7 @@ function AppContent() {
     setReturnToImagePreview,
     returnToSettings,
     setReturnToSettings,
+    refetchAndHydrateState,
   });
 
   const handleSaveColumnWidth = useCallback(async (colId: string, newWidth: number, targetPageOverride?: string) => {
