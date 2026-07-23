@@ -1511,6 +1511,7 @@ function AppContent() {
         );
       };
       
+      const originalIndices = new Map<string, number>(activeRowsWithSum.map((r, i) => [String(r.id), i]));
       const statsMap = new Map<string, { total: number, remaining: number }>();
       const getStats = (row: any) => {
         if (statsMap.has(row.id)) return statsMap.get(row.id)!;
@@ -1553,9 +1554,10 @@ function AppContent() {
           if (isOriginalArray) {
             rows = [...rows];
           }
-          rows.sort(
-            (a, b) => getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]),
-          );
+          rows.sort((a, b) => {
+            const diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
+            return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
+          });
         }
       }
 
@@ -1564,15 +1566,12 @@ function AppContent() {
         if (isOriginalArray) {
           rows = [...rows];
         }
-        if (trackerSort === "high") {
-          rows.sort(
-            (a, b) => getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]),
-          );
-        } else if (trackerSort === "low") {
-          rows.sort(
-            (a, b) => getNum(a[latestSaleCol]) - getNum(b[latestSaleCol]),
-          );
-        }
+        rows.sort((a, b) => {
+          let diff = 0;
+          if (trackerSort === "high") diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
+          else if (trackerSort === "low") diff = getNum(a[latestSaleCol]) - getNum(b[latestSaleCol]);
+          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
+        });
       }
       if (activeConfig.linkedSourcePage && activeConfig.autoSortBySales) {
         const isOriginalArray = rows === activeRowsWithSum;
@@ -1582,7 +1581,8 @@ function AppContent() {
         rows.sort((a, b) => {
           const totalSalesA = saleCols.reduce((sum, c) => sum + getNum(a[c.key]), 0);
           const totalSalesB = saleCols.reduce((sum, c) => sum + getNum(b[c.key]), 0);
-          return totalSalesB - totalSalesA;
+          const diff = totalSalesB - totalSalesA;
+          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
         });
       }
 
@@ -1594,11 +1594,12 @@ function AppContent() {
         rows.sort((a, b) => {
           const statsA = getStats(a);
           const statsB = getStats(b);
-          if (trackerQtySort === "total_high") return statsB.total - statsA.total;
-          if (trackerQtySort === "total_low") return statsA.total - statsB.total;
-          if (trackerQtySort === "remaining_high") return statsB.remaining - statsA.remaining;
-          if (trackerQtySort === "remaining_low") return statsA.remaining - statsB.remaining;
-          return 0;
+          let diff = 0;
+          if (trackerQtySort === "total_high") diff = statsB.total - statsA.total;
+          else if (trackerQtySort === "total_low") diff = statsA.total - statsB.total;
+          else if (trackerQtySort === "remaining_high") diff = statsB.remaining - statsA.remaining;
+          else if (trackerQtySort === "remaining_low") diff = statsA.remaining - statsB.remaining;
+          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
         });
       }
     }
@@ -1674,6 +1675,7 @@ function AppContent() {
         );
       };
 
+      const originalIndices = new Map<string, number>(secRows.map((r, i) => [String(r.id), i]));
       const statsMap = new Map<string, { total: number, remaining: number }>();
       const getStats = (row: any) => {
         if (statsMap.has(row.id)) return statsMap.get(row.id)!;
@@ -1716,9 +1718,10 @@ function AppContent() {
           if (isOriginalArray) {
             rows = [...rows];
           }
-          rows.sort(
-            (a, b) => getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]),
-          );
+          rows.sort((a, b) => {
+            const diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
+            return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
+          });
         }
       }
 
@@ -1727,15 +1730,12 @@ function AppContent() {
         if (isOriginalArray) {
           rows = [...rows];
         }
-        if (trackerSort === "high") {
-          rows.sort(
-            (a, b) => getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]),
-          );
-        } else if (trackerSort === "low") {
-          rows.sort(
-            (a, b) => getNum(a[latestSaleCol]) - getNum(b[latestSaleCol]),
-          );
-        }
+        rows.sort((a, b) => {
+          let diff = 0;
+          if (trackerSort === "high") diff = getNum(b[latestSaleCol]) - getNum(a[latestSaleCol]);
+          else if (trackerSort === "low") diff = getNum(a[latestSaleCol]) - getNum(b[latestSaleCol]);
+          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
+        });
       }
 
       if (trackerQtySort !== "none") {
@@ -1746,11 +1746,12 @@ function AppContent() {
         rows.sort((a, b) => {
           const statsA = getStats(a);
           const statsB = getStats(b);
-          if (trackerQtySort === "total_high") return statsB.total - statsA.total;
-          if (trackerQtySort === "total_low") return statsA.total - statsB.total;
-          if (trackerQtySort === "remaining_high") return statsB.remaining - statsA.remaining;
-          if (trackerQtySort === "remaining_low") return statsA.remaining - statsB.remaining;
-          return 0;
+          let diff = 0;
+          if (trackerQtySort === "total_high") diff = statsB.total - statsA.total;
+          else if (trackerQtySort === "total_low") diff = statsA.total - statsB.total;
+          else if (trackerQtySort === "remaining_high") diff = statsB.remaining - statsA.remaining;
+          else if (trackerQtySort === "remaining_low") diff = statsA.remaining - statsB.remaining;
+          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
         });
       }
     }
