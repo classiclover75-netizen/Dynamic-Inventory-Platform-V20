@@ -144,6 +144,7 @@ export function useTrackerActions(deps: {
       linkedSourcePage: sourcePage,
       columns: newColumns,
       minStockAlert: 5,
+      autoSortBySales: true,
     };
 
     // EXACT COPY of ALL row data, setting total_qty to '0'
