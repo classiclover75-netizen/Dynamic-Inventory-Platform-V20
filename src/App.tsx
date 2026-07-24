@@ -2897,9 +2897,7 @@ function AppContent() {
         linkedSourcePage={activeConfig.linkedSourcePage}
         autoSortBySales={activeConfig.autoSortBySales}
         minStockAlert={activeConfig.minStockAlert}
-        initialTrackerFilter={trackerFilter}
-        initialTrackerSort={trackerSort}
-        initialTrackerQtySort={trackerQtySort}
+                initialTrackerQtySort={trackerQtySort}
       />
 
       <GlobalCopyBoxesSettingsModal

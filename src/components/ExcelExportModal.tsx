@@ -22,15 +22,13 @@ export interface ExcelExportModalProps {
   linkedSourcePage?: string | null;
   autoSortBySales?: boolean;
   minStockAlert?: number;
-  initialTrackerFilter?: string;
-  initialTrackerSort?: string;
   initialTrackerQtySort?: string;
 }
 
 export const ExcelExportModal = React.memo(({
   isOpen, onClose, onBack, pageName, columns, rows, lowStockIds, activeFilterSaleCol,
   isTrackerPage, linkedSourcePage, autoSortBySales, minStockAlert,
-  initialTrackerFilter = 'all', initialTrackerSort = 'none', initialTrackerQtySort = 'none'
+  initialTrackerQtySort = 'none'
 }: ExcelExportModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [localRows, setLocalRows] = useState<RowData[]>(rows);
@@ -40,8 +38,6 @@ export const ExcelExportModal = React.memo(({
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Tracker specific local states
-  const [localTrackerFilter, setLocalTrackerFilter] = useState(initialTrackerFilter);
-  const [localTrackerSort, setLocalTrackerSort] = useState(initialTrackerSort);
   const [localTrackerQtySort, setLocalTrackerQtySort] = useState(initialTrackerQtySort);
 
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
@@ -119,11 +115,9 @@ export const ExcelExportModal = React.memo(({
     if (isOpen) {
       setSelectedColumnKeys(new Set(columns.filter(c => c.key !== 'sr' && !c.archived).map(c => c.key)));
       setShowLowStockOnly(false);
-      setLocalTrackerFilter(initialTrackerFilter);
-      setLocalTrackerSort(initialTrackerSort);
       setLocalTrackerQtySort(initialTrackerQtySort);
     }
-  }, [isOpen, columns, initialTrackerFilter, initialTrackerSort, initialTrackerQtySort]);
+  }, [isOpen, columns, initialTrackerQtySort]);
 
   const decodeHtmlEntities = (text: string) => {
     if (!text) return text;
@@ -237,8 +231,8 @@ export const ExcelExportModal = React.memo(({
         rows: baseRows,
         originalRows: localRows,
         columns,
-        trackerFilter: localTrackerFilter,
-        trackerSort: localTrackerSort,
+        trackerFilter: 'all',
+        trackerSort: 'none',
         trackerQtySort: localTrackerQtySort,
         activeFilterSaleCol,
         minStockAlert,
@@ -250,7 +244,7 @@ export const ExcelExportModal = React.memo(({
     return baseRows;
   }, [
     localRows, deferredSearchQuery, showLowStockOnly, lowStockIds, columns,
-    isTrackerPage, localTrackerFilter, localTrackerSort, localTrackerQtySort,
+    isTrackerPage, localTrackerQtySort,
     activeFilterSaleCol, minStockAlert, linkedSourcePage, autoSortBySales
   ]);
 
@@ -611,35 +605,8 @@ export const ExcelExportModal = React.memo(({
 
             {isTrackerPage && (
               <div className="flex items-center gap-4 p-2 bg-blue-50 border border-blue-200 rounded-lg text-sm shrink-0 mb-4 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
-                  <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                    🔍 Filter:
-                  </span>
-                  <select
-                    value={localTrackerFilter}
-                    onChange={(e) => setLocalTrackerFilter(e.target.value)}
-                    className="text-xs font-bold text-[#2b579a] border-none outline-none cursor-pointer bg-transparent"
-                  >
-                    <option value="all">🟢 All Data (Reset)</option>
-                    <option value="high">⭐ High Sale</option>
-                    <option value="zero">0️⃣ Zero Sale</option>
-                    <option value="low">🚨 Low Stock</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
-                  <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                    ↕️ Sort by Sale Column:
-                  </span>
-                  <select
-                    value={localTrackerSort}
-                    onChange={(e) => setLocalTrackerSort(e.target.value)}
-                    className="text-xs font-bold text-[#2b579a] border-none outline-none cursor-pointer bg-transparent"
-                  >
-                    <option value="none">🟢 Default (Reset)</option>
-                    <option value="high">⬆️ High Sale First</option>
-                    <option value="low">⬇️ Low Sale First</option>
-                  </select>
-                </div>
+                
+                
                 <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
                   <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
                     📦 Qty:
