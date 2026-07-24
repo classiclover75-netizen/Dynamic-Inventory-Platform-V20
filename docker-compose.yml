@@ -1,20 +1,14 @@
-
 services:
   db:
-    image: mongo:latest
+    image: mongo:8
     restart: always
     volumes:
       - mongo_data:/data/db
-    ports:
-      - "27017:27017"
-
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     restart: always
-    ports:
-      - "3000:3000"
     volumes:
       - ./uploads:/app/uploads
     environment:
@@ -22,7 +16,6 @@ services:
       - NODE_ENV=production
     depends_on:
       - db
-
   inventory-app:
     build:
       context: .
@@ -32,6 +25,5 @@ services:
       - "80:80"
     depends_on:
       - api
-
 volumes:
   mongo_data:
