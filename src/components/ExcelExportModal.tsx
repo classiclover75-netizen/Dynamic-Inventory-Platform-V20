@@ -171,7 +171,7 @@ export const ExcelExportModal = React.memo(({
   // Code 2 wala Advanced Tokenized Search
   const filteredRows = useMemo(() => {
     let baseRows = localRows;
-    if (showLowStockOnly && lowStockIds) {
+    if (isTrackerPage && showLowStockOnly && lowStockIds) {
       baseRows = baseRows.filter(r => lowStockIds.has(String(r.id)));
     }
 
@@ -590,7 +590,7 @@ export const ExcelExportModal = React.memo(({
                 <Search className="absolute left-2 top-2.5 text-gray-400" size={16} />
                 <Input className="pl-8" placeholder="Filter rows..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
-              {lowStockIds && (
+              {isTrackerPage && lowStockIds && (
                 <label className="flex items-center gap-2 cursor-pointer bg-red-50 text-red-700 px-3 py-1.5 rounded border border-red-200 font-bold text-sm hover:bg-red-100 transition-colors">
                   <input 
                     type="checkbox" 
