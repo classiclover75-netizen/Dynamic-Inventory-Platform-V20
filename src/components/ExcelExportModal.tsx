@@ -7,6 +7,7 @@ import { useToast } from './ToastProvider';
 import { Search, ArrowLeft, FileSpreadsheet } from 'lucide-react';
 import { parseMultiSource } from '../lib/appUtils';
 import { isRetired, sumActive } from '../lib/sourceArchiveUtils';
+import { filterAndSortTrackerRows } from '../lib/trackerSortUtils';
 
 export interface ExcelExportModalProps {
   isOpen: boolean;
@@ -17,17 +18,32 @@ export interface ExcelExportModalProps {
   rows: RowData[];
   lowStockIds?: Set<string> | null;
   activeFilterSaleCol?: string | null;
+  isTrackerPage?: boolean;
+  linkedSourcePage?: string | null;
+  autoSortBySales?: boolean;
+  minStockAlert?: number;
+  initialTrackerFilter?: string;
+  initialTrackerSort?: string;
+  initialTrackerQtySort?: string;
 }
 
 export const ExcelExportModal = React.memo(({
-  isOpen, onClose, onBack, pageName, columns, rows, lowStockIds, activeFilterSaleCol
-}) => {
+  isOpen, onClose, onBack, pageName, columns, rows, lowStockIds, activeFilterSaleCol,
+  isTrackerPage, linkedSourcePage, autoSortBySales, minStockAlert,
+  initialTrackerFilter = 'all', initialTrackerSort = 'none', initialTrackerQtySort = 'none'
+}: ExcelExportModalProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [localRows, setLocalRows] = useState<RowData[]>(rows);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Tracker specific local states
+  const [localTrackerFilter, setLocalTrackerFilter] = useState(initialTrackerFilter);
+  const [localTrackerSort, setLocalTrackerSort] = useState(initialTrackerSort);
+  const [localTrackerQtySort, setLocalTrackerQtySort] = useState(initialTrackerQtySort);
+
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [selectedColumnKeys, setSelectedColumnKeys] = useState<Set<string>>(
     new Set(columns.filter(c => c.key !== 'sr' && !c.archived).map(c => c.key))
@@ -103,8 +119,11 @@ export const ExcelExportModal = React.memo(({
     if (isOpen) {
       setSelectedColumnKeys(new Set(columns.filter(c => c.key !== 'sr' && !c.archived).map(c => c.key)));
       setShowLowStockOnly(false);
+      setLocalTrackerFilter(initialTrackerFilter);
+      setLocalTrackerSort(initialTrackerSort);
+      setLocalTrackerQtySort(initialTrackerQtySort);
     }
-  }, [isOpen, columns]);
+  }, [isOpen, columns, initialTrackerFilter, initialTrackerSort, initialTrackerQtySort]);
 
   const decodeHtmlEntities = (text: string) => {
     if (!text) return text;
@@ -162,56 +181,78 @@ export const ExcelExportModal = React.memo(({
       baseRows = baseRows.filter(r => lowStockIds.has(String(r.id)));
     }
 
-    if (!deferredSearchQuery.trim()) return baseRows;
-    const activeQueries = [deferredSearchQuery.trim()].filter(Boolean);
-    
-    return baseRows.filter(row => {
-      const colData = columns.map(col => {
-        if (col.key === "sr" || col.type === "image" || col.type === "file") return null;
-        const val = getCellValue(row, col);
-        const strVal = Array.isArray(val) ? val.join(" ") : val !== null && val !== undefined ? String(val) : "";
-        const cleanVal = decodeHtmlEntities(strVal).replace(/<!--[\s\S]*?-->/g, "").replace(/<br\s*\/?>/gi, " ").replace(/&nbsp;/gi, " ").toLowerCase();
-        return { name: col.name.toLowerCase(), val: cleanVal };
-      }).filter(Boolean) as { name: string; val: string }[];
+    if (deferredSearchQuery.trim()) {
+      const activeQueries = [deferredSearchQuery.trim()].filter(Boolean);
+      
+      baseRows = baseRows.filter(row => {
+        const colData = columns.map(col => {
+          if (col.key === "sr" || col.type === "image" || col.type === "file") return null;
+          const val = getCellValue(row, col);
+          const strVal = Array.isArray(val) ? val.join(" ") : val !== null && val !== undefined ? String(val) : "";
+          const cleanVal = decodeHtmlEntities(strVal).replace(/<!--[\s\S]*?-->/g, "").replace(/<br\s*\/?>/gi, " ").replace(/&nbsp;/gi, " ").toLowerCase();
+          return { name: col.name.toLowerCase(), val: cleanVal };
+        }).filter(Boolean) as { name: string; val: string }[];
 
-      const globalBlob = colData.map((c) => c.val).join(" ");
+        const globalBlob = colData.map((c) => c.val).join(" ");
 
-      return activeQueries.some((query) => {
-        let targetBlob = globalBlob;
-        let searchString = query.toLowerCase();
-        const colonIndex = searchString.indexOf(":");
-        if (colonIndex > 0) {
-          const prefix = searchString.substring(0, colonIndex).trim();
-          const suffix = searchString.substring(colonIndex + 1).trim();
-          const matchedCol = colData.find((c) => c.name.includes(prefix) || prefix.includes(c.name));
-          if (matchedCol) {
-            targetBlob = matchedCol.val;
-            searchString = suffix;
-          }
-        }
-        const tokens = searchString.split(/\s+/).filter(Boolean);
-        if (tokens.length === 0) return true;
-        return tokens.every((t) => {
-          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          let bStart = "";
-          let bEnd = "";
-          if (/^[0-9]/.test(t)) {
-            bStart = "";
-            bEnd = "";
-          } else if (/^[a-zA-Z]/.test(t)) {
-            if (t.length <= 2) {
-              bStart = "(?<![a-zA-Z])";
-              bEnd = "(?![a-zA-Z]{2,})";
-            } else {
-              bStart = "";
-              bEnd = "";
+        return activeQueries.some((query) => {
+          let targetBlob = globalBlob;
+          let searchString = query.toLowerCase();
+          const colonIndex = searchString.indexOf(":");
+          if (colonIndex > 0) {
+            const prefix = searchString.substring(0, colonIndex).trim();
+            const suffix = searchString.substring(colonIndex + 1).trim();
+            const matchedCol = colData.find((c) => c.name.includes(prefix) || prefix.includes(c.name));
+            if (matchedCol) {
+              targetBlob = matchedCol.val;
+              searchString = suffix;
             }
           }
-          return new RegExp(bStart + escaped + bEnd, "i").test(targetBlob);
+          const tokens = searchString.split(/\s+/).filter(Boolean);
+          if (tokens.length === 0) return true;
+          return tokens.every((t) => {
+            const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            let bStart = "";
+            let bEnd = "";
+            if (/^[0-9]/.test(t)) {
+              bStart = "";
+              bEnd = "";
+            } else if (/^[a-zA-Z]/.test(t)) {
+              if (t.length <= 2) {
+                bStart = "(?<![a-zA-Z])";
+                bEnd = "(?![a-zA-Z]{2,})";
+              } else {
+                bStart = "";
+                bEnd = "";
+              }
+            }
+            return new RegExp(bStart + escaped + bEnd, "i").test(targetBlob);
+          });
         });
       });
-    });
-  }, [localRows, deferredSearchQuery, showLowStockOnly, lowStockIds, columns]);
+    }
+
+    if (isTrackerPage) {
+      baseRows = filterAndSortTrackerRows({
+        rows: baseRows,
+        originalRows: localRows,
+        columns,
+        trackerFilter: localTrackerFilter,
+        trackerSort: localTrackerSort,
+        trackerQtySort: localTrackerQtySort,
+        activeFilterSaleCol,
+        minStockAlert,
+        linkedSourcePage,
+        autoSortBySales,
+      });
+    }
+
+    return baseRows;
+  }, [
+    localRows, deferredSearchQuery, showLowStockOnly, lowStockIds, columns,
+    isTrackerPage, localTrackerFilter, localTrackerSort, localTrackerQtySort,
+    activeFilterSaleCol, minStockAlert, linkedSourcePage, autoSortBySales
+  ]);
 
   const parseHtmlToRichText = (html: string) => {
     const div = document.createElement('div');
@@ -362,7 +403,7 @@ export const ExcelExportModal = React.memo(({
     try {
       // Agar kuch select kiya hai toh sirf wo, warna filtered sab
       const rowsToExport = selectedRowIds.size > 0 
-        ? localRows.filter(r => selectedRowIds.has(r.id))
+        ? filteredRows.filter(r => selectedRowIds.has(r.id))
         : filteredRows; 
 
       const workbook = new ExcelJS.Workbook();
@@ -567,6 +608,56 @@ export const ExcelExportModal = React.memo(({
                 </label>
               )}
             </div>
+
+            {isTrackerPage && (
+              <div className="flex items-center gap-4 p-2 bg-blue-50 border border-blue-200 rounded-lg text-sm shrink-0 mb-4 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
+                  <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                    🔍 Filter:
+                  </span>
+                  <select
+                    value={localTrackerFilter}
+                    onChange={(e) => setLocalTrackerFilter(e.target.value)}
+                    className="text-xs font-bold text-[#2b579a] border-none outline-none cursor-pointer bg-transparent"
+                  >
+                    <option value="all">🟢 All Data (Reset)</option>
+                    <option value="high">⭐ High Sale</option>
+                    <option value="zero">0️⃣ Zero Sale</option>
+                    <option value="low">🚨 Low Stock</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
+                  <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                    ↕️ Sort by Sale Column:
+                  </span>
+                  <select
+                    value={localTrackerSort}
+                    onChange={(e) => setLocalTrackerSort(e.target.value)}
+                    className="text-xs font-bold text-[#2b579a] border-none outline-none cursor-pointer bg-transparent"
+                  >
+                    <option value="none">🟢 Default (Reset)</option>
+                    <option value="high">⬆️ High Sale First</option>
+                    <option value="low">⬇️ Low Sale First</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
+                  <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                    📦 Qty:
+                  </span>
+                  <select
+                    value={localTrackerQtySort}
+                    onChange={(e) => setLocalTrackerQtySort(e.target.value)}
+                    className="text-xs font-bold text-[#2b579a] border-none outline-none cursor-pointer bg-transparent"
+                  >
+                    <option value="none">🟢 Default (Reset)</option>
+                    <option value="total_high">⬆️ Total Qty: High to Low</option>
+                    <option value="total_low">⬇️ Total Qty: Low to High</option>
+                    <option value="remaining_high">⬆️ Remaining Qty: High to Low</option>
+                    <option value="remaining_low">⬇️ Remaining Qty: Low to High</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 mb-4 shrink-0 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center gap-3">

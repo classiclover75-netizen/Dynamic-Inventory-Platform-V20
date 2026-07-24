@@ -55,6 +55,7 @@ import { useTrackerActions } from "./hooks/useTrackerActions";
 import { useTableHover } from "./hooks/useTableHover";
 import { useSaveActions } from "./hooks/useSaveActions";
 import { useInlineEdit } from "./hooks/useInlineEdit";
+import { filterAndSortTrackerRows } from "./lib/trackerSortUtils";
 import { TableView } from "./components/TableView";
 import { ColumnResizeHandle } from "./components/ColumnResizeHandle";
 import { CreateTrackerSelectionModal } from "./components/CreateTrackerSelectionModal";
@@ -1496,115 +1497,18 @@ function AppContent() {
       });
     }
     if (activeConfig.isTrackerPage) {
-      const saleCols = activeConfig.columns.filter(
-        (c) => c.type === "sale_tracker",
-      );
-      const latestSaleCol =
-        activeFilterSaleCol &&
-        saleCols.some((c) => c.key === activeFilterSaleCol)
-          ? activeFilterSaleCol
-          : saleCols.length > 0
-            ? saleCols[0].key
-            : null;
-      const getNum = (row: any, v: any) => {
-        const validSources = new Set(parseMultiSource(row.total_qty).map((ts: any) => ts.source));
-        return parseMultiSource(v).reduce(
-          (sum: number, s: any) => sum + (validSources.has(s.source) ? (parseFloat(s.qty) || 0) : 0),
-          0,
-        );
-      };
-      
-      const originalIndices = new Map<string, number>(activeRowsWithSum.map((r, i) => [String(r.id), i]));
-      const statsMap = new Map<string, { total: number, remaining: number }>();
-      const getStats = (row: any) => {
-        if (statsMap.has(row.id)) return statsMap.get(row.id)!;
-        const totalSources = parseMultiSource(row.total_qty);
-        let total = 0;
-        let remaining = 0;
-        totalSources.forEach((ts: any) => {
-          const tQty = parseFloat(ts.qty) || 0;
-          total += tQty;
-          let totalSaleForSource = 0;
-          saleCols.forEach((sc: any) => {
-            const sales = parseMultiSource(row[sc.key]);
-            const saleEntry = sales.find((s: any) => s.source === ts.source);
-            if (saleEntry) totalSaleForSource += (parseFloat(saleEntry.qty) || 0);
-          });
-          remaining += (tQty - totalSaleForSource);
-        });
-        const stats = { total, remaining };
-        statsMap.set(row.id, stats);
-        return stats;
-      };
-
-      if (trackerFilter !== "all") {
-        rows = rows.filter((row) => {
-          const stats = getStats(row);
-          const minStock = activeConfig.minStockAlert || 5;
-          const latestSaleVal = latestSaleCol ? getNum(row, row[latestSaleCol]) : 0;
-
-          if (trackerFilter === "low") {
-            return stats.remaining <= minStock;
-          } else if (trackerFilter === "zero") {
-            return latestSaleVal === 0 || !row[latestSaleCol!];
-          } else if (trackerFilter === "high") {
-            return latestSaleVal > 0;
-          }
-          return true;
-        });
-        if (trackerFilter === "high" && latestSaleCol) {
-          const isOriginalArray = rows === activeRowsWithSum;
-          if (isOriginalArray) {
-            rows = [...rows];
-          }
-          rows.sort((a, b) => {
-            const diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
-            return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
-          });
-        }
-      }
-
-      if (trackerFilter === "all" && trackerSort !== "none" && latestSaleCol) {
-        const isOriginalArray = rows === activeRowsWithSum;
-        if (isOriginalArray) {
-          rows = [...rows];
-        }
-        rows.sort((a, b) => {
-          let diff = 0;
-          if (trackerSort === "high") diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
-          else if (trackerSort === "low") diff = getNum(a, a[latestSaleCol]) - getNum(b, b[latestSaleCol]);
-          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
-        });
-      }
-      if (activeConfig.linkedSourcePage && activeConfig.autoSortBySales) {
-        const isOriginalArray = rows === activeRowsWithSum;
-        if (isOriginalArray) {
-          rows = [...rows];
-        }
-        rows.sort((a, b) => {
-          const totalSalesA = saleCols.reduce((sum, c) => sum + getNum(a, a[c.key]), 0);
-          const totalSalesB = saleCols.reduce((sum, c) => sum + getNum(b, b[c.key]), 0);
-          const diff = totalSalesB - totalSalesA;
-          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
-        });
-      }
-
-      if (trackerQtySort !== "none") {
-        const isOriginalArray = rows === activeRowsWithSum;
-        if (isOriginalArray) {
-          rows = [...rows];
-        }
-        rows.sort((a, b) => {
-          const statsA = getStats(a);
-          const statsB = getStats(b);
-          let diff = 0;
-          if (trackerQtySort === "total_high") diff = statsB.total - statsA.total;
-          else if (trackerQtySort === "total_low") diff = statsA.total - statsB.total;
-          else if (trackerQtySort === "remaining_high") diff = statsB.remaining - statsA.remaining;
-          else if (trackerQtySort === "remaining_low") diff = statsA.remaining - statsB.remaining;
-          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
-        });
-      }
+      rows = filterAndSortTrackerRows({
+        rows,
+        originalRows: activeRowsWithSum,
+        columns: activeConfig.columns,
+        trackerFilter,
+        trackerSort,
+        trackerQtySort,
+        activeFilterSaleCol,
+        minStockAlert: activeConfig.minStockAlert,
+        linkedSourcePage: activeConfig.linkedSourcePage,
+        autoSortBySales: activeConfig.autoSortBySales,
+      });
     }
 
     return sortRows(rows, activeConfig.columns);
@@ -1661,103 +1565,18 @@ function AppContent() {
       });
     }
     if (secConfig.isTrackerPage) {
-      const saleCols = secConfig.columns.filter(
-        (c) => c.type === "sale_tracker",
-      );
-      const latestSaleCol =
-        activeFilterSaleCol &&
-        saleCols.some((c) => c.key === activeFilterSaleCol)
-          ? activeFilterSaleCol
-          : saleCols.length > 0
-            ? saleCols[0].key
-            : null;
-      const getNum = (row: any, v: any) => {
-        const validSources = new Set(parseMultiSource(row.total_qty).map((ts: any) => ts.source));
-        return parseMultiSource(v).reduce(
-          (sum: number, s: any) => sum + (validSources.has(s.source) ? (parseFloat(s.qty) || 0) : 0),
-          0,
-        );
-      };
-
-      const originalIndices = new Map<string, number>(secRows.map((r, i) => [String(r.id), i]));
-      const statsMap = new Map<string, { total: number, remaining: number }>();
-      const getStats = (row: any) => {
-        if (statsMap.has(row.id)) return statsMap.get(row.id)!;
-        const totalSources = parseMultiSource(row.total_qty);
-        let total = 0;
-        let remaining = 0;
-        totalSources.forEach((ts: any) => {
-          const tQty = parseFloat(ts.qty) || 0;
-          total += tQty;
-          let totalSaleForSource = 0;
-          saleCols.forEach((sc: any) => {
-            const sales = parseMultiSource(row[sc.key]);
-            const saleEntry = sales.find((s: any) => s.source === ts.source);
-            if (saleEntry) totalSaleForSource += (parseFloat(saleEntry.qty) || 0);
-          });
-          remaining += (tQty - totalSaleForSource);
-        });
-        const stats = { total, remaining };
-        statsMap.set(row.id, stats);
-        return stats;
-      };
-
-      if (trackerFilter !== "all") {
-        rows = rows.filter((row) => {
-          const stats = getStats(row);
-          const minStock = secConfig.minStockAlert || 5;
-          const latestSaleVal = latestSaleCol ? getNum(row, row[latestSaleCol]) : 0;
-
-          if (trackerFilter === "low") {
-            return stats.remaining <= minStock;
-          } else if (trackerFilter === "zero") {
-            return latestSaleVal === 0 || !row[latestSaleCol!];
-          } else if (trackerFilter === "high") {
-            return latestSaleVal > 0;
-          }
-          return true;
-        });
-        if (trackerFilter === "high" && latestSaleCol) {
-          const isOriginalArray = rows === secRows;
-          if (isOriginalArray) {
-            rows = [...rows];
-          }
-          rows.sort((a, b) => {
-            const diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
-            return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
-          });
-        }
-      }
-
-      if (trackerFilter === "all" && trackerSort !== "none" && latestSaleCol) {
-        const isOriginalArray = rows === secRows;
-        if (isOriginalArray) {
-          rows = [...rows];
-        }
-        rows.sort((a, b) => {
-          let diff = 0;
-          if (trackerSort === "high") diff = getNum(b, b[latestSaleCol]) - getNum(a, a[latestSaleCol]);
-          else if (trackerSort === "low") diff = getNum(a, a[latestSaleCol]) - getNum(b, b[latestSaleCol]);
-          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
-        });
-      }
-
-      if (trackerQtySort !== "none") {
-        const isOriginalArray = rows === secRows;
-        if (isOriginalArray) {
-          rows = [...rows];
-        }
-        rows.sort((a, b) => {
-          const statsA = getStats(a);
-          const statsB = getStats(b);
-          let diff = 0;
-          if (trackerQtySort === "total_high") diff = statsB.total - statsA.total;
-          else if (trackerQtySort === "total_low") diff = statsA.total - statsB.total;
-          else if (trackerQtySort === "remaining_high") diff = statsB.remaining - statsA.remaining;
-          else if (trackerQtySort === "remaining_low") diff = statsA.remaining - statsB.remaining;
-          return diff !== 0 ? diff : (originalIndices.get(String(a.id)) ?? 0) - (originalIndices.get(String(b.id)) ?? 0);
-        });
-      }
+      rows = filterAndSortTrackerRows({
+        rows,
+        originalRows: secRows,
+        columns: secConfig.columns,
+        trackerFilter,
+        trackerSort,
+        trackerQtySort,
+        activeFilterSaleCol,
+        minStockAlert: secConfig.minStockAlert,
+        linkedSourcePage: secConfig.linkedSourcePage,
+        autoSortBySales: secConfig.autoSortBySales,
+      });
     }
 
     return sortRows(rows, secConfig.columns);
@@ -3049,6 +2868,13 @@ function AppContent() {
         columns={activeCustomSum ? activeColumnsWithSum : activeConfig.columns}
         rows={activeCustomSum ? activeRowsWithSum : activeRows}
         lowStockIds={currentLowStockIds}
+        isTrackerPage={activeConfig.isTrackerPage}
+        linkedSourcePage={activeConfig.linkedSourcePage}
+        autoSortBySales={activeConfig.autoSortBySales}
+        minStockAlert={activeConfig.minStockAlert}
+        initialTrackerFilter={trackerFilter}
+        initialTrackerSort={trackerSort}
+        initialTrackerQtySort={trackerQtySort}
       />
 
       <GlobalCopyBoxesSettingsModal
