@@ -93,6 +93,7 @@ function AppContent() {
     pageConfigs: {},
     pageRows: {},
     globalRowNoWidth: 100,
+    sourceSuggestionsEnabled: false,
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -204,6 +205,8 @@ function AppContent() {
             ...prev,
             pages: data.pages || [],
             globalRowNoWidth: data.globalRowNoWidth || prev.globalRowNoWidth,
+            globalCopyBoxes: data.globalCopyBoxes !== undefined ? data.globalCopyBoxes : prev.globalCopyBoxes,
+            sourceSuggestionsEnabled: data.sourceSuggestionsEnabled ?? prev.sourceSuggestionsEnabled,
             activePage: isValidPage
               ? urlPage
               : data.pages && data.pages.length > 0 && !prev.activePage
@@ -2189,6 +2192,27 @@ function AppContent() {
 
       <AddRowModal
         isOpen={modals.addRow}
+        sourceSuggestionsEnabled={state.sourceSuggestionsEnabled}
+        onToggleSourceSuggestions={async (val) => {
+          setState((prev) => ({ ...prev, sourceSuggestionsEnabled: val }));
+          try {
+            await fetch("/api/settings", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                globalCopyBoxes: state.globalCopyBoxes,
+                globalRowNoWidth: state.globalRowNoWidth,
+                maxSearchHistory,
+                pageOrder: state.pages,
+                sourceSuggestionsEnabled: val,
+              }),
+            });
+            toast("Source suggestions " + (val ? "enabled" : "disabled"));
+          } catch (err) {
+            console.error("Failed to save settings:", err);
+            toast("Failed to save settings");
+          }
+        }}
         onClose={closeAllModals}
         onApplySourceToAll={handleApplySourceToAll}
         onBack={
@@ -2486,6 +2510,7 @@ function AppContent() {
                 globalRowNoWidth: state.globalRowNoWidth,
                 maxSearchHistory,
                 pageOrder: newPages,
+                sourceSuggestionsEnabled: state.sourceSuggestionsEnabled,
               }),
             });
           } catch (err) {
@@ -3039,6 +3064,7 @@ function AppContent() {
                       body: JSON.stringify({
                         globalRowNoWidth: state.globalRowNoWidth,
                         maxSearchHistory: tempHistoryLimit,
+                        sourceSuggestionsEnabled: state.sourceSuggestionsEnabled,
                       }),
                     });
                     setMaxSearchHistory(tempHistoryLimit);

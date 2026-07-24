@@ -202,6 +202,8 @@ export const AddRowModal = React.memo(
     setConfirmationModal,
     getImageUrl,
     isLiveTracker = false,
+    sourceSuggestionsEnabled = false,
+    onToggleSourceSuggestions,
   }: {
     isOpen: boolean;
     onClose: () => void;
@@ -226,6 +228,8 @@ export const AddRowModal = React.memo(
     ) => void;
     getImageUrl: (val: any) => string;
     isLiveTracker?: boolean;
+    sourceSuggestionsEnabled?: boolean;
+    onToggleSourceSuggestions?: (val: boolean) => void;
   }) => {
     const { toast } = useToast();
     const [blocks, setBlocks] = useState<Record<string, any>[]>([{}]);
@@ -872,7 +876,20 @@ export const AddRowModal = React.memo(
                             return (
                               <div className="border border-purple-200 bg-purple-50 p-2 rounded flex flex-col h-full min-h-[100px]">
                                 <div className="flex justify-between items-center mb-2 px-1">
-                                  <span className="text-xs text-purple-700 font-bold uppercase">Sources</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-purple-700 font-bold uppercase">Sources</span>
+                                    {onToggleSourceSuggestions && (
+                                      <label className="flex items-center gap-1 cursor-pointer" title="Suggest source names used in other rows (applies to everyone)">
+                                        <input
+                                          type="checkbox"
+                                          checked={sourceSuggestionsEnabled}
+                                          onChange={(e) => onToggleSourceSuggestions(e.target.checked)}
+                                          className="w-3 h-3 cursor-pointer accent-purple-600"
+                                        />
+                                        <span className="text-[10px] text-purple-600 font-medium">Suggestions</span>
+                                      </label>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-1">
                                     {retiredSources.length > 0 && (
                                       <Button
@@ -1078,6 +1095,7 @@ export const AddRowModal = React.memo(
                                     dropdownPosition="top"
                                     className="h-8 text-[14px] px-2 w-full"
                                     wrapperClassName="flex-[2] min-w-[100px]"
+                                    suggestionsEnabled={sourceSuggestionsEnabled}
                                     value={newSourceInput.source}
                                     onChange={(val) =>
                                       setNewSourceInputs({

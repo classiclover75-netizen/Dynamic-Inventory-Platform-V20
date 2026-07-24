@@ -60,6 +60,7 @@ interface SourceAutocompleteInputProps {
   wrapperClassName?: string;
   isExistingSource?: boolean;
   dropdownPosition?: "bottom" | "top";
+  suggestionsEnabled?: boolean;
 }
 
 export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = ({
@@ -71,6 +72,7 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
   wrapperClassName = "",
   isExistingSource = false,
   dropdownPosition = "bottom",
+  suggestionsEnabled = false,
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -177,7 +179,7 @@ export const SourceAutocompleteInput: React.FC<SourceAutocompleteInputProps> = (
         />
       )}
 
-      {showSuggestions && filtered.length > 0 && (
+      {suggestionsEnabled && showSuggestions && filtered.length > 0 && (
         <div 
           className="source-autocomplete-dropdown fixed z-[99999] min-w-[140px] overflow-y-auto bg-white border border-gray-300 rounded shadow-lg p-1.5 flex flex-col gap-1.5"
           style={{

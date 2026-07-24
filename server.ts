@@ -178,7 +178,8 @@ async function syncDatabaseParity() {
         await AppSettings.findOneAndUpdate({}, {
           globalCopyBoxes: localData.settings.globalCopyBoxes,
           globalRowNoWidth: localData.settings.globalRowNoWidth,
-          maxSearchHistory: localData.settings.maxSearchHistory
+          maxSearchHistory: localData.settings.maxSearchHistory,
+          sourceSuggestionsEnabled: localData.settings.sourceSuggestionsEnabled
         }, { upsert: true });
       }
       console.log('Local to MongoDB sync complete.');
@@ -203,7 +204,8 @@ async function syncDatabaseParity() {
         settings: settings ? {
           globalCopyBoxes: settings.globalCopyBoxes,
           globalRowNoWidth: settings.globalRowNoWidth,
-          maxSearchHistory: settings.maxSearchHistory
+          maxSearchHistory: settings.maxSearchHistory,
+        sourceSuggestionsEnabled: settings.sourceSuggestionsEnabled
         } : {}
       };
       await fs.promises.writeFile(LOCAL_DB_PATH, JSON.stringify(newLocalDb, null, 2));
@@ -245,7 +247,8 @@ async function performLocalBackup() {
       settings: settings ? {
         globalCopyBoxes: settings.globalCopyBoxes,
         globalRowNoWidth: settings.globalRowNoWidth,
-        maxSearchHistory: settings.maxSearchHistory
+        maxSearchHistory: settings.maxSearchHistory,
+        sourceSuggestionsEnabled: settings.sourceSuggestionsEnabled
       } : {}
     };
     await fs.promises.writeFile(LOCAL_DB_PATH, JSON.stringify(newLocalDb, null, 2));
@@ -627,7 +630,8 @@ const settingsSchema = new mongoose.Schema({
   globalCopyBoxes: mongoose.Schema.Types.Mixed,
   globalRowNoWidth: Number,
   maxSearchHistory: { type: Number, default: 10 },
-  pageOrder: [String]
+  pageOrder: [String],
+  sourceSuggestionsEnabled: { type: Boolean, default: false }
 });
 const AppSettings = mongoose.model('AppSettings', settingsSchema);
 
@@ -951,7 +955,8 @@ app.get('/api/export', async (_req, res) => {
         pageRows,
         globalCopyBoxes: settings.globalCopyBoxes,
         globalRowNoWidth: settings.globalRowNoWidth,
-        maxSearchHistory: settings.maxSearchHistory
+        maxSearchHistory: settings.maxSearchHistory,
+        sourceSuggestionsEnabled: settings.sourceSuggestionsEnabled
       };
     } else {
       state = await getLocalDB();
@@ -1008,7 +1013,8 @@ app.get('/api/export-zip', async (_req, res) => {
         pageRows,
         globalCopyBoxes: settings.globalCopyBoxes,
         globalRowNoWidth: settings.globalRowNoWidth,
-        maxSearchHistory: settings.maxSearchHistory
+        maxSearchHistory: settings.maxSearchHistory,
+        sourceSuggestionsEnabled: settings.sourceSuggestionsEnabled
       };
     } else {
       state = await getLocalDB();
@@ -1097,7 +1103,8 @@ app.get('/api/export-zip-verified', async (_req, res) => {
         pageRows,
         globalCopyBoxes: settings.globalCopyBoxes,
         globalRowNoWidth: settings.globalRowNoWidth,
-        maxSearchHistory: settings.maxSearchHistory
+        maxSearchHistory: settings.maxSearchHistory,
+        sourceSuggestionsEnabled: settings.sourceSuggestionsEnabled
       };
     } else {
       state = await getLocalDB();
@@ -1341,6 +1348,7 @@ app.get('/api/state', async (_req, res) => {
         globalCopyBoxes: settings.globalCopyBoxes,
         globalRowNoWidth: settings.globalRowNoWidth,
         maxSearchHistory: settings.maxSearchHistory,
+        sourceSuggestionsEnabled: settings.sourceSuggestionsEnabled,
         pageOrder: settings.pageOrder || []
       };
       
@@ -1365,6 +1373,7 @@ app.get('/api/state', async (_req, res) => {
         globalCopyBoxes: db.settings?.globalCopyBoxes,
         globalRowNoWidth: db.settings?.globalRowNoWidth,
         maxSearchHistory: db.settings?.maxSearchHistory,
+        sourceSuggestionsEnabled: db.settings?.sourceSuggestionsEnabled,
         pageOrder: pageOrder
       };
       return res.json(state);
@@ -2014,13 +2023,13 @@ app.delete('/api/pageRows/:name(*)/:rowId', async (req, res) => {
 
 app.put('/api/settings', async (req, res) => {
   try {
-    const { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder } = req.body;
+    const { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder, sourceSuggestionsEnabled } = req.body;
     if (isUsingMongoDB) {
-      await AppSettings.findOneAndUpdate({}, { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder }, { upsert: true });
+      await AppSettings.findOneAndUpdate({}, { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder, sourceSuggestionsEnabled }, { upsert: true });
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
-      db.settings = { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder };
+      db.settings = { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder, sourceSuggestionsEnabled };
       await saveLocalDB(db);
     }
     res.json({ success: true });
@@ -2049,6 +2058,7 @@ function normalizeBackupPayload(payload: any) {
       globalCopyBoxes: payload.globalCopyBoxes ?? null,
       globalRowNoWidth: payload.globalRowNoWidth ?? 100,
       maxSearchHistory: payload.maxSearchHistory ?? 10,
+      sourceSuggestionsEnabled: payload.sourceSuggestionsEnabled ?? false,
       pageOrder: Array.isArray(payload.pageOrder) ? payload.pageOrder : []
     };
     pagesToUpdate = newState.pages;
@@ -2060,6 +2070,7 @@ function normalizeBackupPayload(payload: any) {
       globalCopyBoxes: null,
       globalRowNoWidth: 100,
       maxSearchHistory: 10,
+      sourceSuggestionsEnabled: false,
       pageOrder: []
     };
     pagesToUpdate = [payload.name];
@@ -2082,6 +2093,7 @@ function normalizeBackupPayload(payload: any) {
       globalCopyBoxes: payload.settings?.globalCopyBoxes ?? null,
       globalRowNoWidth: payload.settings?.globalRowNoWidth ?? 100,
       maxSearchHistory: payload.settings?.maxSearchHistory ?? 10,
+      sourceSuggestionsEnabled: payload.settings?.sourceSuggestionsEnabled ?? false,
       pageOrder: Array.isArray(payload.settings?.pageOrder) ? payload.settings?.pageOrder : []
     };
   } else if (payload.pages && Array.isArray(payload.pages) && (payload.pages.length === 0 || typeof payload.pages[0] === 'string')) {
@@ -2093,6 +2105,7 @@ function normalizeBackupPayload(payload: any) {
       globalCopyBoxes: payload.globalCopyBoxes ?? payload.settings?.globalCopyBoxes ?? null,
       globalRowNoWidth: payload.globalRowNoWidth ?? payload.settings?.globalRowNoWidth ?? 100,
       maxSearchHistory: payload.maxSearchHistory ?? payload.settings?.maxSearchHistory ?? 10,
+      sourceSuggestionsEnabled: payload.sourceSuggestionsEnabled ?? payload.settings?.sourceSuggestionsEnabled ?? false,
       pageOrder: Array.isArray(payload.pageOrder) ? payload.pageOrder : Array.isArray(payload.settings?.pageOrder) ? payload.settings?.pageOrder : []
     };
   } else {
@@ -2262,7 +2275,8 @@ app.put('/api/state', async (req, res) => {
           await AppSettings.findOneAndUpdate({}, {
             globalCopyBoxes: newState.globalCopyBoxes,
             globalRowNoWidth: newState.globalRowNoWidth,
-            maxSearchHistory: newState.maxSearchHistory
+            maxSearchHistory: newState.maxSearchHistory,
+            sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
           }, { upsert: true });
 
           await triggerLocalBackup();
@@ -2283,6 +2297,7 @@ app.put('/api/state', async (req, res) => {
               globalCopyBoxes: s.globalCopyBoxes,
               globalRowNoWidth: s.globalRowNoWidth,
               maxSearchHistory: s.maxSearchHistory,
+              sourceSuggestionsEnabled: s.sourceSuggestionsEnabled,
               pageOrder: s.pageOrder
             })));
           }
@@ -2332,7 +2347,8 @@ app.put('/api/state', async (req, res) => {
             settings: {
               globalCopyBoxes: newState.globalCopyBoxes,
               globalRowNoWidth: newState.globalRowNoWidth,
-              maxSearchHistory: newState.maxSearchHistory
+              maxSearchHistory: newState.maxSearchHistory,
+            sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
             }
           };
           await saveLocalDB(newDb);
@@ -2494,7 +2510,8 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
         await AppSettings.findOneAndUpdate({}, {
           globalCopyBoxes: newState.globalCopyBoxes,
           globalRowNoWidth: newState.globalRowNoWidth,
-          maxSearchHistory: newState.maxSearchHistory
+          maxSearchHistory: newState.maxSearchHistory,
+            sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
         }, { upsert: true });
       }
       await triggerLocalBackup();
@@ -2550,7 +2567,8 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
           settings: {
             globalCopyBoxes: newState.globalCopyBoxes,
             globalRowNoWidth: newState.globalRowNoWidth,
-            maxSearchHistory: newState.maxSearchHistory
+            maxSearchHistory: newState.maxSearchHistory,
+            sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
           }
         };
         await saveLocalDB(newDb);

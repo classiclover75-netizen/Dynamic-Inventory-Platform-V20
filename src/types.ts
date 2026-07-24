@@ -86,4 +86,8 @@ export interface AppState {
   pageConfigs: Record<string, PageConfig>;
   pageRows: Record<string, RowData[]>;
   globalRowNoWidth?: number;
+  globalCopyBoxes?: GlobalCopyBoxesSettings;
+  maxSearchHistory?: number;
+  pageOrder?: string[];
+  sourceSuggestionsEnabled?: boolean;
 }
