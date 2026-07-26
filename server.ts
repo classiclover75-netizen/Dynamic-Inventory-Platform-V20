@@ -2591,6 +2591,14 @@ app.put('/api/state', async (req, res) => {
 });
 
 app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
+  const _diag = {
+    start: Date.now(),
+    imgStart: 0, imgEnd: 0, imgCount: 0,
+    jsonStart: 0, jsonEnd: 0,
+    orphanStart: 0, orphanEnd: 0,
+    pages: [] as {name: string, duration: number, rows: number}[]
+  };
+
   const isStream = req.query.stream === '1';
   if (isStream) {
     res.setHeader('Content-Type', 'application/json');
@@ -2614,6 +2622,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     }
 
+    try { _diag.imgStart = Date.now(); } catch(e) {}
     sendProgress(5, 'Reading backup archive...');
     
     const zip = new AdmZip(req.file.path);
@@ -2627,6 +2636,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
     zipEntries.forEach((entry) => {
       if (entry.entryName.startsWith('uploads/') && !entry.isDirectory) {
         extractedCount++;
+        try { _diag.imgCount++; } catch(e) {}
         if (totalUploadEntries > 0) {
            const pct = 5 + Math.floor((extractedCount / totalUploadEntries) * 55);
            sendProgress(pct, 'Extracting images...', entry.entryName.replace(/^uploads\//, ''));
@@ -2635,6 +2645,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     });
 
+    try { _diag.imgEnd = Date.now(); _diag.jsonStart = Date.now(); } catch(e) {}
     const dataEntry = zipEntries.find((entry) => entry.entryName === 'data.json');
     if (!dataEntry) {
       const errorMsg = 'data.json not found in zip archive';
@@ -2651,6 +2662,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
     const { newState, importType, pagesToUpdate, isBundle, isSinglePage } = normalizeBackupPayload(payload);
     console.log(`Import ZIP detected: ${isBundle ? 'Bundle' : isSinglePage ? 'Single Page' : 'Full Backup'}`);
 
+    try { _diag.jsonEnd = Date.now(); } catch(e) {}
     sendProgress(70, 'Preparing pages and rows...');
 
     // We do NOT process base64 images here because they are already extracted physical files.
@@ -2660,6 +2672,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       if (isSinglePage || isBundle) {
         for (let i = 0; i < pagesToUpdate.length; i++) {
           const pageName = pagesToUpdate[i];
+          let _pgStart = 0; try { _pgStart = Date.now(); } catch(e) {}
           const pct = 70 + Math.floor((i / pagesToUpdate.length) * 25);
           const rows = processedPageRows[pageName] || [];
           sendProgress(pct, `Importing page "${pageName}" (${rows.length} rows)...`);
@@ -2706,6 +2719,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
           });
           
           await executeSafeBulkWrite(bulkOps);
+          try { _diag.pages.push({ name: pageName, duration: Date.now() - _pgStart, rows: rows.length }); } catch(e) {}
         }
       } else {
         // Fetch all existing rows to cleanup images
@@ -2717,9 +2731,11 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
           allNewRows.push(...processedPageRows[pageName]);
         }
         
+        try { _diag.orphanStart = Date.now(); } catch(e) {}
         sendProgress(96, 'Cleaning up unused images...');
         await cleanupOrphanImages(allOldRows, allNewRows, true);
         await diskSweepOrphans(allNewRows);
+        try { _diag.orphanEnd = Date.now(); } catch(e) {}
 
         // Clear absent pages from Page collection
         const importedPages = newState.pages || [];
@@ -2738,11 +2754,13 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
         const bulkOps: any[] = [];
         const baseOrder = Date.now();
         
+        let _dbStart = 0; try { _dbStart = Date.now(); } catch(e) {}
         const existingDocs = await PageRow.find({}, { _id: 1, 'data.id': 1, pageName: 1 }).lean();
         
         const importedRowsByPage = new Map();
         const totalPages = importedPages.length;
         importedPages.forEach((pageName: string, i: number) => {
+          let _pgStart = 0; try { _pgStart = Date.now(); } catch(e) {}
           let rows = processedPageRows[pageName] || [];
           const rowMap = new Map();
           rows.forEach((r: any) => {
@@ -2763,6 +2781,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
               }
             });
           });
+          try { _diag.pages.push({ name: pageName, duration: Date.now() - _pgStart, rows: rows.length }); } catch(e) {}
         });
         
         existingDocs.forEach((doc: any) => {
@@ -2785,6 +2804,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
         
         sendProgress(93, 'Writing to database...');
         await executeSafeBulkWrite(bulkOps);
+        try { _diag.pages.push({ name: 'DB Bulk Write', duration: Date.now() - _dbStart, rows: bulkOps.length }); } catch(e) {}
         
         // Update settings
         await AppSettings.findOneAndUpdate({}, {
@@ -2801,6 +2821,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
         for (let i = 0; i < pagesToUpdate.length; i++) {
           const pageName = pagesToUpdate[i];
           const pct = 70 + Math.floor((i / pagesToUpdate.length) * 25);
+          let _pgStart = 0; try { _pgStart = Date.now(); } catch(e) {}
           const newRows = processedPageRows[pageName] || [];
           sendProgress(pct, `Importing page "${pageName}" (${newRows.length} rows)...`);
           
@@ -2815,6 +2836,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
           } else {
             db.pages.push(newPageData);
           }
+          try { _diag.pages.push({ name: pageName, duration: Date.now() - _pgStart, rows: newRows.length }); } catch(e) {}
         }
         await saveLocalDB(db);
       } else {
