@@ -1463,6 +1463,8 @@ app.post('/api/pages', async (req, res) => {
     if (isUsingMongoDB) {
       const newPage = new Page({ name, config });
       await newPage.save();
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1489,6 +1491,10 @@ app.put('/api/pages/:name(*)/rename', async (req, res) => {
         newConfig.linkedSourcePage = newName;
         await Page.findByIdAndUpdate(p._id, { config: newConfig });
       }
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1525,6 +1531,8 @@ app.delete('/api/pages/:name(*)', async (req, res) => {
         await Page.findOneAndDelete({ name: p.name });
         await PageRow.deleteMany({ pageName: p.name });
       }
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1624,6 +1632,8 @@ app.post('/api/pages/update-config', async (req, res) => {
     const finalPageName = name || pageName;
     if (isUsingMongoDB) {
       await Page.findOneAndUpdate({ name: finalPageName }, { config });
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1643,6 +1653,8 @@ app.put('/api/pageConfigs/:name(*)', async (req, res) => {
     const { config } = req.body;
     if (isUsingMongoDB) {
       await Page.findOneAndUpdate({ name }, { config });
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1659,6 +1671,8 @@ app.put('/api/pageConfigs/:name(*)', async (req, res) => {
 
 let transactionsSupported: boolean | null = null;
 app.put('/api/pageRows/:name(*)', async (req, res) => {
+  const saveStartTime = Date.now();
+  console.log(`[SAVE-TIMING] Starting save for pageName: ${req.params.name}, incoming rows: ${req.body.rows ? req.body.rows.length : 0}`);
   try {
     const { name } = req.params;
     const { rows } = req.body;
@@ -1697,6 +1711,7 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       seenIds.add(String(row.id));
       return row;
     });
+    console.log(`[SAVE-TIMING] After resolving incoming ids / cross-page check: ${Date.now() - saveStartTime}ms`);
 
     if (isUsingMongoDB) {
       const pageConfig = await Page.findOne({ name });
@@ -1710,8 +1725,12 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       const bulkOps: any[] = [];
       const incomingIdsSet = new Set(newRows.map((r: any) => String(r.id)));
       
+      let upsertCount = 0;
+      let deleteCount = 0;
+
       // Upsert incoming rows
       newRows.forEach((row: any, i: number) => {
+        upsertCount++;
         bulkOps.push({
           updateOne: {
             filter: { pageName: name, 'data.id': String(row.id) },
@@ -1725,6 +1744,7 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       existingDocs.forEach((doc: any) => {
         const docId = doc.data?.id ? String(doc.data.id) : null;
         if (!docId || !incomingIdsSet.has(docId)) {
+          deleteCount++;
           bulkOps.push({
             deleteOne: {
               filter: { _id: doc._id }
@@ -1732,6 +1752,8 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
           });
         }
       });
+      
+      console.log(`[SAVE-TIMING] After building bulkOps (upserts: ${upsertCount}, deletes: ${deleteCount}, existing docs: ${existingDocs.length}): ${Date.now() - saveStartTime}ms`);
 
       let session = null;
       if (transactionsSupported !== false) {
@@ -1772,6 +1794,8 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
           }
         }
       }
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1783,6 +1807,7 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       }
       await saveLocalDB(db);
     }
+    console.log(`[SAVE-TIMING] Total time before res.json: ${Date.now() - saveStartTime}ms`);
     res.json({ success: true });
   } catch (err: any) {
     if (err.message === 'SHARP_UNSUPPORTED_FORMAT') {
@@ -1864,6 +1889,8 @@ app.patch('/api/pageRows/:name(*)/bulk', async (req, res) => {
           }
         }
       }
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1924,6 +1951,8 @@ app.patch('/api/pageRows/:name(*)/:rowId', async (req, res) => {
       const processedRow = await processRowImages(newRowData, forceSave);
 
       await PageRow.findByIdAndUpdate(rowToUpdate._id, { data: processedRow });
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1999,6 +2028,8 @@ app.post('/api/pageRows/:name(*)/append', async (req, res) => {
       if (recordsToInsert.length > 0) {
         await PageRow.insertMany(recordsToInsert);
       }
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -2032,6 +2063,8 @@ app.delete('/api/pageRows/:name(*)/:rowId', async (req, res) => {
       deletedRowData = rowToDelete.data;
       await PageRow.findByIdAndDelete(rowToDelete._id);
       
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -2061,6 +2094,8 @@ app.put('/api/settings', async (req, res) => {
     const { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder, sourceSuggestionsEnabled } = req.body;
     if (isUsingMongoDB) {
       await AppSettings.findOneAndUpdate({}, { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder, sourceSuggestionsEnabled }, { upsert: true });
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -2259,7 +2294,9 @@ app.put('/api/state', async (req, res) => {
             await PageRow.insertMany(rowsToInsert);
           }
         }
-        await triggerLocalBackup();
+        console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
+      await triggerLocalBackup();
       } else {
         // Fetch all existing rows to cleanup images
         const allOldPageRows = await getSortedPageRows({});
@@ -2314,7 +2351,9 @@ app.put('/api/state', async (req, res) => {
             sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
           }, { upsert: true });
 
-          await triggerLocalBackup();
+          console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
+      await triggerLocalBackup();
         } catch (importErr: any) {
           console.error("Import failed, rolling back to snapshot:", importErr);
           await Page.deleteMany({});
@@ -2549,6 +2588,8 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
             sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
         }, { upsert: true });
       }
+      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
+      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
