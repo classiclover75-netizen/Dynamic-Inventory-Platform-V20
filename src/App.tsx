@@ -2347,7 +2347,6 @@ function AppContent() {
           onSave={async (cols) => {
             await handleManageTrackerColumns(cols);
             closeAllModals();
-            toggleModal("activePageSettings", true);
           }}
         />
       )}
