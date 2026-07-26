@@ -2343,6 +2343,7 @@ function AppContent() {
           }}
           activeConfig={rawActiveConfig}
           pageConfigs={state.pageConfigs}
+          pageRows={state.pageRows}
           onSave={async (cols) => {
             await handleManageTrackerColumns(cols);
             closeAllModals();
