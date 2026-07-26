@@ -196,6 +196,28 @@ export const TopHeaderBar = ({
                 >
                   🚀 Migrate All Images
                 </button>
+
+                <button
+                  className="w-full text-left border-0 rounded bg-green-50 text-green-700 text-xs font-bold p-2 cursor-pointer hover:bg-green-100 mb-2"
+                  onClick={async () => {
+                    setShowTopSettings(false);
+                    try {
+                      toast("Backfilling thumbnails. Please wait...");
+                      const response = await fetch("/api/admin/backfill-thumbnails", { method: "POST" });
+                      const data = await response.json();
+                      if (response.ok) {
+                        toast(`Backfill complete! Scanned: ${data.scanned}, Created: ${data.created}, Skipped: ${data.skipped}, Failed: ${data.failed}`);
+                      } else {
+                        toast("Backfill failed: " + (data.error || 'Unknown error'));
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      toast("Backfill failed");
+                    }
+                  }}
+                >
+                  🖼️ Backfill Thumbnails
+                </button>
                 <button
                   className="w-full text-left border-0 rounded bg-red-50 text-red-700 text-xs font-bold p-2 cursor-pointer hover:bg-red-100 mb-1"
                   onClick={() => {

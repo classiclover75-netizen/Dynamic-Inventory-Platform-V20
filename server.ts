@@ -1,3 +1,4 @@
+import { backfillThumbnails } from './src/server/backfillThumbnails';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -2296,6 +2297,17 @@ function normalizeBackupPayload(payload: any) {
 
   return { newState, importType, pagesToUpdate, isBundle, isSinglePage };
 }
+
+
+app.post('/api/admin/backfill-thumbnails', async (req, res) => {
+  try {
+    const summary = await backfillThumbnails(UPLOADS_DIR);
+    res.json(summary);
+  } catch (err: any) {
+    console.error('Error backfilling thumbnails:', err);
+    res.status(500).json({ error: err.message || 'Failed to backfill thumbnails' });
+  }
+});
 
 app.post('/api/admin/hard-clear', async (req, res) => {
   try {
