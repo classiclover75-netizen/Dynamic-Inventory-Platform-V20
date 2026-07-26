@@ -2880,6 +2880,43 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
     // Clean up temp file
     fs.unlinkSync(req.file.path);
     
+    // DIAGNOSTIC REPORT
+    try {
+      const totalTime = Date.now() - _diag.start;
+      const imgTime = _diag.imgEnd ? (_diag.imgEnd - _diag.imgStart) / 1000 : 0;
+      const jsonTime = _diag.jsonEnd ? (_diag.jsonEnd - _diag.jsonStart) / 1000 : 0;
+      const orphanTime = _diag.orphanEnd ? (_diag.orphanEnd - _diag.orphanStart) / 1000 : 0;
+      
+      let phases: {name: string, time: number}[] = [
+        {name: 'Image extraction', time: imgTime},
+        {name: 'data.json parse', time: jsonTime},
+        {name: 'Orphan cleanup', time: orphanTime}
+      ];
+      
+      console.log('=== IMPORT TIMING SUMMARY ===');
+      console.log(`Image extraction: ${imgTime.toFixed(1)}s (${_diag.imgCount} files)`);
+      console.log(`data.json parse: ${jsonTime.toFixed(1)}s`);
+      
+      _diag.pages.forEach(p => {
+         const pTime = p.duration / 1000;
+         phases.push({name: `Page "${p.name}"`, time: pTime});
+         console.log(`Page "${p.name}": ${pTime.toFixed(1)}s (${p.rows} rows)`);
+      });
+      
+      if (_diag.orphanEnd) {
+         console.log(`Orphan cleanup: ${orphanTime.toFixed(1)}s`);
+      } else {
+         console.log(`Orphan cleanup: skipped`);
+      }
+      console.log(`TOTAL IMPORT TIME: ${(totalTime / 1000).toFixed(1)}s`);
+      
+      phases.sort((a, b) => b.time - a.time);
+      if (phases.length > 0) {
+         console.log(`Slowest phase: ${phases[0].name} (${phases[0].time.toFixed(1)}s)`);
+      }
+      console.log('=============================');
+    } catch(e) {}
+
     if (isStream) {
       res.end(JSON.stringify({ type: 'done', percent: 100, message: 'Import complete', success: true }) + '\n');
     } else {
