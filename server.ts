@@ -1656,6 +1656,8 @@ app.put('/api/pageConfigs/:name(*)', async (req, res) => {
   }
 });
 
+
+let transactionsSupported: boolean | null = null;
 app.put('/api/pageRows/:name(*)', async (req, res) => {
   try {
     const { name } = req.params;
@@ -1701,54 +1703,73 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       const isTracker = pageConfig?.config?.linkedSourcePage;
       const newRows = (isTracker || skipImageProcessing) ? rowsToProcess : await processRowsConcurrently(rowsToProcess, 50, forceSave);
       
-      let session = null;
-      try {
-        session = await mongoose.startSession();
-        session.startTransaction();
 
-        await PageRow.deleteMany({ pageName: name }, { session });
-        if (newRows.length > 0) {
-          const baseOrder = Date.now();
-          await PageRow.insertMany(newRows.map((row: any, i: number) => ({ pageName: name, order: baseOrder + i, data: row })), { session });
-        }
-
-        await session.commitTransaction();
-      } catch (txnErr: any) {
-        if (session) {
-          await session.abortTransaction().catch(() => {});
-        }
-        const errMsg = (txnErr.message || '').toLowerCase();
-        const isUnsupported = errMsg.includes('replica set') || errMsg.includes('transaction') || errMsg.includes('not supported') || txnErr.code === 20 || txnErr.code === 263 || txnErr.name === 'IllegalOperation';
-        
-        if (isUnsupported) {
-          console.warn("Transaction not supported, falling back to safe sequential insert/delete:", txnErr.message);
-          
-          try {
-            const existingDocs = await PageRow.find({ pageName: name }, { _id: 1 }).lean();
-            const existingIds = existingDocs.map((d: any) => d._id);
-
-            if (newRows.length > 0) {
-              const baseOrder = Date.now();
-              await PageRow.insertMany(newRows.map((row: any, i: number) => ({
-                pageName: name,
-                order: baseOrder + i,
-                data: row
-              })));
-            }
-
-            if (existingIds.length > 0) {
-              await PageRow.deleteMany({ _id: { $in: existingIds } });
-            }
-          } catch (fallbackErr) {
-            console.error("Fallback insert/delete failed, old rows remain intact:", fallbackErr);
-            throw fallbackErr;
+      const baseOrder = Date.now();
+      const existingDocs = await PageRow.find({ pageName: name }, { _id: 1, 'data.id': 1 }).lean();
+      
+      const bulkOps: any[] = [];
+      const incomingIdsSet = new Set(newRows.map((r: any) => String(r.id)));
+      
+      // Upsert incoming rows
+      newRows.forEach((row: any, i: number) => {
+        bulkOps.push({
+          updateOne: {
+            filter: { pageName: name, 'data.id': String(row.id) },
+            update: { $set: { pageName: name, order: baseOrder + i, data: row } },
+            upsert: true
           }
-        } else {
-          throw txnErr;
+        });
+      });
+      
+      // Delete missing rows
+      existingDocs.forEach((doc: any) => {
+        const docId = doc.data?.id ? String(doc.data.id) : null;
+        if (!docId || !incomingIdsSet.has(docId)) {
+          bulkOps.push({
+            deleteOne: {
+              filter: { _id: doc._id }
+            }
+          });
         }
-      } finally {
-        if (session) {
-          session.endSession();
+      });
+
+      let session = null;
+      if (transactionsSupported !== false) {
+        try {
+          session = await mongoose.startSession();
+          session.startTransaction();
+        } catch (e) {
+          transactionsSupported = false;
+          session = null;
+        }
+      }
+
+      if (bulkOps.length > 0) {
+        try {
+          if (session) {
+            await PageRow.bulkWrite(bulkOps, { session });
+            await session.commitTransaction();
+          } else {
+            await PageRow.bulkWrite(bulkOps);
+          }
+        } catch (txnErr: any) {
+          if (session) {
+            await session.abortTransaction().catch(() => {});
+          }
+          const errMsg = (txnErr.message || '').toLowerCase();
+          const isUnsupported = errMsg.includes('replica set') || errMsg.includes('transaction') || errMsg.includes('not supported') || txnErr.code === 20 || txnErr.code === 263 || txnErr.name === 'IllegalOperation';
+          
+          if (session && isUnsupported) {
+            console.warn("Transaction not supported on write, falling back to non-transactional bulk write:", txnErr.message);
+            transactionsSupported = false;
+            await PageRow.bulkWrite(bulkOps);
+          } else {
+            throw txnErr;
+          }
+        } finally {
+          if (session) {
+            session.endSession();
+          }
         }
       }
       await triggerLocalBackup();
@@ -1776,7 +1797,7 @@ app.patch('/api/pageRows/:name(*)/bulk', async (req, res) => {
     const { name } = req.params;
     const { order, updates } = req.body;
     const forceSave = req.query.force === 'true';
-
+    const skipImageProcessing = req.query.skipImageProcessing === 'true';
     if (isUsingMongoDB) {
       if (updates && Object.keys(updates).length > 0) {
         const rowIds = Object.keys(updates).map(String);
@@ -1892,7 +1913,7 @@ app.patch('/api/pageRows/:name(*)/:rowId', async (req, res) => {
     const { name, rowId } = req.params;
     const { updates } = req.body;
     const forceSave = req.query.force === 'true';
-
+    const skipImageProcessing = req.query.skipImageProcessing === 'true';
     if (isUsingMongoDB) {
       const rowToUpdate = await PageRow.findOne({ pageName: name, 'data.id': String(rowId) });
       if (!rowToUpdate) {
