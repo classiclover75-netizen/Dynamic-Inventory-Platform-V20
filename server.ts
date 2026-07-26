@@ -1728,8 +1728,6 @@ async function executeSafeBulkWrite(bulkOps: any[]) {
   }
 }
 app.put('/api/pageRows/:name(*)', async (req, res) => {
-  const saveStartTime = Date.now();
-  console.log(`[SAVE-TIMING] Starting save for pageName: ${req.params.name}, incoming rows: ${req.body.rows ? req.body.rows.length : 0}`);
   try {
     const { name } = req.params;
     const { rows } = req.body;
@@ -1768,7 +1766,6 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       seenIds.add(String(row.id));
       return row;
     });
-    console.log(`[SAVE-TIMING] After resolving incoming ids / cross-page check: ${Date.now() - saveStartTime}ms`);
 
     if (isUsingMongoDB) {
       const pageConfig = await Page.findOne({ name });
@@ -1810,7 +1807,6 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
         }
       });
       
-      console.log(`[SAVE-TIMING] After building bulkOps (upserts: ${upsertCount}, deletes: ${deleteCount}, existing docs: ${existingDocs.length}): ${Date.now() - saveStartTime}ms`);
 
       let session = null;
       if (transactionsSupported !== false) {
