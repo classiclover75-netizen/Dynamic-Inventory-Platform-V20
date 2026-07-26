@@ -2290,7 +2290,7 @@ function AppContent() {
       />
 
 
-      {modals.manageTrackerColumns && rawActiveConfig.linkedSourcePage && state.pageConfigs[rawActiveConfig.linkedSourcePage] && (
+      {modals.manageTrackerColumns && rawActiveConfig.linkedSourcePage && (
         <ManageTrackerColumnsModal
           isOpen={modals.manageTrackerColumns}
           onClose={closeAllModals}
@@ -2299,7 +2299,7 @@ function AppContent() {
             toggleModal("activePageSettings", true);
           }}
           activeConfig={rawActiveConfig}
-          sourceConfig={state.pageConfigs[rawActiveConfig.linkedSourcePage]}
+          pageConfigs={state.pageConfigs}
           onSave={async (cols) => {
             await handleManageTrackerColumns(cols);
             closeAllModals();
