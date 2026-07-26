@@ -231,10 +231,52 @@ function AppContent() {
     }
   }, [state.activePage]);
 
+  const fetchPageData = React.useCallback(async (pageName: string) => {
+    try {
+      const res = await fetch(`/api/pages/${encodeURIComponent(pageName)}`);
+      let data: any = {}; try { data = await res.json(); } catch(e) {}
+      if (data && !data.error) {
+        setState((prev) => ({
+          ...prev,
+          pageConfigs: {
+            ...prev.pageConfigs,
+            [data.name]: data.config,
+          },
+          pageRows: {
+            ...prev.pageRows,
+            [data.name]: data.rows,
+          },
+        }));
+        return { config: data.config, rows: data.rows, name: data.name };
+      }
+    } catch (err) {
+      console.error("Failed to fetch page data:", err);
+    }
+    return null;
+  }, []);
+
+  const loadSourcePageIfNeeded = React.useCallback(async (sourcePageName: string) => {
+    if (!sourcePageName) return null;
+    let config = state.pageConfigs[sourcePageName];
+    let rows = state.pageRows[sourcePageName];
+    if (config && rows) return { config, rows, name: sourcePageName };
+    
+    const targetName = sourcePageName.trim().toLowerCase();
+    const actualName = state.pages.find(p => p.trim().toLowerCase() === targetName);
+    
+    if (actualName) {
+      setIsLoading(true);
+      const res = await fetchPageData(actualName);
+      setIsLoading(false);
+      return res;
+    }
+    return null;
+  }, [state.pageConfigs, state.pageRows, state.pages, fetchPageData]);
+
   useEffect(() => {
     if (!state.activePage) return;
 
-    const fetchPageData = async (pageName: string) => {
+    const oldFetchPageData = async (pageName: string) => {
       try {
         const res = await fetch(`/api/pages/${encodeURIComponent(pageName)}`);
         let data: any = {}; try { data = await res.json(); } catch(e) {}
@@ -263,7 +305,7 @@ function AppContent() {
 
       if (!activeConfig) {
         setIsLoading(true);
-        activeConfig = await fetchPageData(state.activePage);
+        activeConfig = await oldFetchPageData(state.activePage);
       }
 
       if (
@@ -272,7 +314,7 @@ function AppContent() {
         !state.pageConfigs[activeConfig.secondarySearchPage]
       ) {
         setIsLoading(true);
-        await fetchPageData(activeConfig.secondarySearchPage);
+        await oldFetchPageData(activeConfig.secondarySearchPage);
       }
 
       setIsLoading(false);
@@ -1044,6 +1086,7 @@ function AppContent() {
     setSelectedArchiveCols,
     handleSaveActivePageSettings,
     handleSaveRows,
+    loadSourcePageIfNeeded,
   });
 
   const handleApplySourceToAll = async (pageName: string, colKey: string, sourceName: string, sourceColor: string) => {
@@ -2318,7 +2361,10 @@ function AppContent() {
         onSave={handleSaveActivePageSettings}
         onDeleteColumn={handleDeleteColumnOptions}
         onSyncTracker={handleSyncTracker}
-        onManageTrackerColumns={() => {
+        onManageTrackerColumns={async () => {
+          if (activeConfig.linkedSourcePage) {
+            await loadSourcePageIfNeeded(activeConfig.linkedSourcePage);
+          }
           setReturnToSettings(true);
           toggleModal("activePageSettings", false);
           toggleModal("manageTrackerColumns", true);
@@ -2366,7 +2412,8 @@ function AppContent() {
         onClearPageData={() => handleClearPageData(state.activePage)}
         existingPages={state.pages}
         setConfirmationModal={setConfirmationModal}
-        onCreateTracker={(sourcePage) => {
+        onCreateTracker={async (sourcePage) => {
+          await loadSourcePageIfNeeded(sourcePage);
           setTrackerSelectionModalSource(sourcePage);
           closeAllModals();
         }}

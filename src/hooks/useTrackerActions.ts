@@ -17,6 +17,7 @@ export function useTrackerActions(deps: {
   setSelectedArchiveCols: any;
   handleSaveActivePageSettings: any;
   handleSaveRows: any;
+  loadSourcePageIfNeeded: any;
 }) {
   const {
     state,
@@ -32,6 +33,7 @@ export function useTrackerActions(deps: {
     setSelectedArchiveCols,
     handleSaveActivePageSettings,
     handleSaveRows,
+    loadSourcePageIfNeeded,
   } = deps;
 
   const handleSyncTracker = async (trackerName: string) => {
@@ -40,14 +42,14 @@ export function useTrackerActions(deps: {
       if (!trackerConfig || !trackerConfig.linkedSourcePage) return;
 
       const sourcePage = trackerConfig.linkedSourcePage;
-      const isSourcePagePresent = state.pages.includes(sourcePage) && !!state.pageConfigs[sourcePage];
+      const loaded = await loadSourcePageIfNeeded(sourcePage);
       
-      if (!isSourcePagePresent) {
+      if (!loaded) {
         toast("Sync blocked: source page is missing. Syncing now would erase this tracker's data. Re-import or recreate the source page first.");
         return;
       }
 
-      const sourceRows = state.pageRows[sourcePage] || [];
+      const sourceRows = loaded.rows || [];
       const trackerRows = state.pageRows[trackerName] || [];
 
       if (sourceRows.length === 0 && trackerRows.length > 0) {
@@ -99,9 +101,10 @@ export function useTrackerActions(deps: {
     sourcePage: string,
     selectedColKeys?: string[],
   ) => {
-    const sourceConfig = state.pageConfigs[sourcePage];
-    const sourceRows = state.pageRows[sourcePage] || [];
-    if (!sourceConfig) return toast("Source page not found!");
+    const loaded = await loadSourcePageIfNeeded(sourcePage);
+    if (!loaded) return toast("Source page not found!");
+    const sourceConfig = loaded.config;
+    const sourceRows = loaded.rows || [];
 
     // SMART AUTO-NUMBERING LOGIC
     const baseTrackerName = `${sourcePage} - Live Tracker`;
@@ -301,13 +304,15 @@ export function useTrackerActions(deps: {
     const handleManageTrackerColumns = async (newSourceColKeys: string[]) => {
     if (!activeConfig || !activeConfig.linkedSourcePage) return;
     const sourcePage = activeConfig.linkedSourcePage;
-    const sourceConfig = state.pageConfigs[sourcePage];
-    const sourceRows = state.pageRows[sourcePage] || [];
+    const loaded = await loadSourcePageIfNeeded(sourcePage);
     
-    if (!sourceConfig) {
+    if (!loaded) {
       toast("Source page not found.");
       return;
     }
+    
+    const sourceConfig = loaded.config;
+    const sourceRows = loaded.rows || [];
 
     const selectedSourceColumns = sourceConfig.columns.filter((c: any) => newSourceColKeys.includes(c.key) || c.key === "sr");
     const sourceColKeysSet = new Set(sourceConfig.columns.map((c: any) => c.key));
