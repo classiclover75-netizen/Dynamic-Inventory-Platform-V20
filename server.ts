@@ -2257,6 +2257,56 @@ function normalizeBackupPayload(payload: any) {
   return { newState, importType, pagesToUpdate, isBundle, isSinglePage };
 }
 
+app.post('/api/admin/hard-clear', async (req, res) => {
+  try {
+    let pagesDeleted = 0;
+    let rowsDeleted = 0;
+    let settingsDeleted = 0;
+
+    if (isUsingMongoDB) {
+      const pageResult = await Page.deleteMany({});
+      const rowResult = await PageRow.deleteMany({});
+      const settingsResult = await AppSettings.deleteMany({});
+      
+      pagesDeleted = pageResult.deletedCount || 0;
+      rowsDeleted = rowResult.deletedCount || 0;
+      settingsDeleted = settingsResult.deletedCount || 0;
+      
+      await triggerLocalBackup();
+    } else {
+      const db = await getLocalDB();
+      pagesDeleted = db.pages ? db.pages.length : 0;
+      rowsDeleted = db.pages ? db.pages.reduce((acc: number, p: any) => acc + (p.rows ? p.rows.length : 0), 0) : 0;
+      
+      db.pages = [];
+      db.settings = {};
+      await saveLocalDB(db);
+    }
+    
+    // Optionally wipe all uploads if we wanted, but not strictly needed unless requested for space.
+    // We'll stick to just DB for now to avoid breaking references if someone kept a file somehow,
+    // though hard-clear means wipe everything. Let's do it if it's safe.
+    // The prompt says "Optionally also clear orphaned uploaded image files, but ONLY within this explicit hard-clear (never elsewhere)."
+    // Let's implement that.
+    try {
+      if (fs.existsSync(UPLOADS_DIR)) {
+        const files = fs.readdirSync(UPLOADS_DIR);
+        for (const file of files) {
+          if (file !== '.gitkeep') {
+            fs.unlinkSync(path.join(UPLOADS_DIR, file));
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to wipe uploads directory:", e);
+    }
+
+    res.json({ success: true, pagesDeleted, rowsDeleted, settingsDeleted });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to hard-clear database' });
+  }
+});
+
 app.put('/api/state', async (req, res) => {
   try {
     const payload = req.body;

@@ -135,20 +135,27 @@ function AppContent() {
   };
 
   const handleClearEntireDB = async () => {
-    const emptyState = {
-      pages: [],
-      pageConfigs: {},
-      pageRows: {},
-      globalRowNoWidth: state.globalRowNoWidth,
-    };
     try {
-      await fetch("/api/state", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emptyState),
+      const response = await fetch("/api/admin/hard-clear", {
+        method: "POST"
       });
+      if (!response.ok) {
+        throw new Error("Server rejected hard-clear request");
+      }
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error("Server reported failure clearing database");
+      }
+      
       toast("Database cleared completely!");
-      setTimeout(() => window.location.reload(), 1000);
+      setState((prev) => ({
+        ...prev,
+        pages: [],
+        pageConfigs: {},
+        pageRows: {},
+        activePage: "",
+      }));
+      setTimeout(() => window.location.reload(), 500);
     } catch (err) {
       console.error(err);
       toast("Failed to clear database");
