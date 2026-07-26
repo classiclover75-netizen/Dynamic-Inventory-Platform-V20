@@ -11,7 +11,7 @@ export interface ManageTrackerColumnsModalProps {
   pageConfigs: Record<string, PageConfig>;
   pageRows: Record<string, any[]>;
   activeConfig: PageConfig;
-  onSave: (selectedColKeys: string[]) => void;
+  onSave: (selectedColKeys: string[]) => Promise<void>;
 }
 
 export const ManageTrackerColumnsModal = React.memo(({
@@ -25,6 +25,7 @@ export const ManageTrackerColumnsModal = React.memo(({
 }: ManageTrackerColumnsModalProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedColKeys, setSelectedColKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -274,6 +275,7 @@ export const ManageTrackerColumnsModal = React.memo(({
                 </span>
                 <div className="flex gap-2">
                   <button
+                    disabled={isSaving}
                     onClick={() =>
                       setSelectedColKeys(
                         new Set(
@@ -288,6 +290,7 @@ export const ManageTrackerColumnsModal = React.memo(({
                     Select All
                   </button>
                   <button
+                    disabled={isSaving}
                     onClick={() => setSelectedColKeys(new Set())}
                     className="px-2 py-1 text-[10px] font-bold bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors border border-gray-300"
                   >
@@ -308,6 +311,7 @@ export const ManageTrackerColumnsModal = React.memo(({
                         type="checkbox"
                         className="accent-[#2b579a] w-4 h-4 cursor-pointer"
                         checked={selectedColKeys.has(col.key)}
+                        disabled={isSaving}
                         onChange={(e) => {
                           const next = new Set(selectedColKeys);
                           if (e.target.checked) next.add(col.key);
@@ -395,6 +399,7 @@ export const ManageTrackerColumnsModal = React.memo(({
           <div className="flex gap-2">
             <Button
               variant="outline"
+              disabled={isSaving}
               onClick={onBack}
               className="flex items-center gap-2"
             >
@@ -403,13 +408,20 @@ export const ManageTrackerColumnsModal = React.memo(({
             {sourceConfig && (
               <Button
                 variant="dark"
-                onClick={() => onSave(Array.from(selectedColKeys))}
+                onClick={async () => {
+                  setIsSaving(true);
+                  try {
+                    await onSave(Array.from(selectedColKeys));
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
                 className="flex items-center gap-2 !bg-[#2b579a] hover:!bg-[#1a3c6d] text-white"
                 disabled={
-                  selectedColKeys.size === 0 && sourceColumns.length > 1
+                  (selectedColKeys.size === 0 && sourceColumns.length > 1) || isSaving
                 }
               >
-                <LayoutList size={16} /> Save Columns
+                <LayoutList size={16} /> {isSaving ? "Saving..." : "Save Columns"}
               </Button>
             )}
           </div>

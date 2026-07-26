@@ -349,7 +349,33 @@ export function useTrackerActions(deps: {
 
     const updatedConfig = { ...activeConfig, columns: newTrackerColumns };
     await handleSaveActivePageSettings(updatedConfig, false);
-    await handleSaveRows(updatedTrackerRows, state.activePage, true);
+    
+    // Use putRows directly to replace all rows for the active page, avoiding duplicates
+    const res = await putRows(state.activePage, updatedTrackerRows);
+    if (!res.ok) {
+       toast("Failed to update tracker columns. Please try again.");
+       throw new Error("Failed to save rows");
+    }
+    
+    setState((prev: any) => {
+      // deduplicate rows by ID as a safety net
+      const dedupedRows = [];
+      const seen = new Set();
+      for (const r of updatedTrackerRows) {
+        if (!seen.has(r.id)) {
+          seen.add(r.id);
+          dedupedRows.push(r);
+        }
+      }
+      return {
+        ...prev,
+        pageRows: {
+          ...prev.pageRows,
+          [state.activePage]: dedupedRows
+        }
+      };
+    });
+    
     toast("Tracker columns updated successfully.");
   };
 
