@@ -32,6 +32,7 @@ import { CreatePageModal } from "./components/CreatePageModal";
 import { AddRowModal } from "./components/AddRowModal";
 import { BulkApplySourceModal } from "./components/BulkApplySourceModal";
 import { ActivePageSettingsModal } from "./components/ActivePageSettingsModal";
+import { ManageTrackerColumnsModal } from "./components/ManageTrackerColumnsModal";
 import { RenamePageModal } from "./components/RenamePageModal";
 import { CreateColumnModal } from "./components/CreateColumnModal";
 import { EditColumnModal } from "./components/EditColumnModal";
@@ -455,6 +456,7 @@ function AppContent() {
     excelExport: false,
     exportChoice: false,
     globalCopyBoxesSettings: false,
+    manageTrackerColumns: false,
     bulkApplySource: false,
   });
 
@@ -1026,6 +1028,7 @@ function AppContent() {
     handleCreateTracker,
     handleAddSaleColumn,
     handleBulkDeleteSaleColumns,
+    handleManageTrackerColumns,
   } = useTrackerActions({
     state,
     setState,
@@ -2285,6 +2288,25 @@ function AppContent() {
         getImageUrl={getImageUrl}
       />
 
+
+      {modals.manageTrackerColumns && rawActiveConfig.linkedSourcePage && state.pageConfigs[rawActiveConfig.linkedSourcePage] && (
+        <ManageTrackerColumnsModal
+          isOpen={modals.manageTrackerColumns}
+          onClose={closeAllModals}
+          onBack={() => {
+            closeAllModals();
+            toggleModal("activePageSettings", true);
+          }}
+          activeConfig={rawActiveConfig}
+          sourceConfig={state.pageConfigs[rawActiveConfig.linkedSourcePage]}
+          onSave={async (cols) => {
+            await handleManageTrackerColumns(cols);
+            closeAllModals();
+            toggleModal("activePageSettings", true);
+          }}
+        />
+      )}
+
       <ActivePageSettingsModal
         isOpen={modals.activePageSettings}
         onClose={closeAllModals}
@@ -2295,6 +2317,11 @@ function AppContent() {
         onSave={handleSaveActivePageSettings}
         onDeleteColumn={handleDeleteColumnOptions}
         onSyncTracker={handleSyncTracker}
+        onManageTrackerColumns={() => {
+          setReturnToSettings(true);
+          toggleModal("activePageSettings", false);
+          toggleModal("manageTrackerColumns", true);
+        }}
         onRenamePage={() => {
           setReturnToSettings(true);
           toggleModal("activePageSettings", false);

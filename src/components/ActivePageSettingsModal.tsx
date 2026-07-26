@@ -25,6 +25,7 @@ export const ActivePageSettingsModal = React.memo(({
   onClearPageData,
   onCreateTracker,
   onSyncTracker,
+  onManageTrackerColumns,
   onConfigureCopyBoxes,
   existingPages,
   setConfirmationModal,
@@ -50,6 +51,7 @@ export const ActivePageSettingsModal = React.memo(({
   onClearPageData: () => void;
   onCreateTracker?: (sourcePage: string) => void;
   onSyncTracker?: (trackerName: string) => void;
+  onManageTrackerColumns?: () => void;
   onConfigureCopyBoxes: () => void;
   existingPages: string[];
   setConfirmationModal: (modal: { isOpen: boolean, title?: string, message?: string, onConfirm: () => void } | null) => void;
@@ -373,6 +375,17 @@ export const ActivePageSettingsModal = React.memo(({
           <p className="text-[11px] text-gray-600 mb-2 leading-tight">Create a linked Live Tracker page with a 100% exact copy of current columns and data.</p>
           <Button variant="green" className="w-full text-xs py-1.5" onClick={() => { onCreateTracker(activePage); onClose(); }}>
              ⚡ Create Linked Live Tracker
+          </Button>
+        </div>
+      )}
+
+
+      {pageConfig?.isTrackerPage && onManageTrackerColumns && (
+        <div className="mt-4 border-t border-[#eceff1] pt-3 mb-3">
+          <div className="text-[11px] font-bold text-purple-700 mb-1.5 uppercase tracking-wide flex items-center gap-1">🧩 Manage Columns</div>
+          <p className="text-[11px] text-gray-600 mb-2 leading-tight">Add or remove columns from the main page to show in this tracker.</p>
+          <Button variant="outline" className="w-full text-xs py-1.5 border-purple-600 text-purple-700 hover:bg-purple-50" onClick={() => { onManageTrackerColumns(); onClose(); }}>
+             🧩 Manage Columns from Main Page
           </Button>
         </div>
       )}

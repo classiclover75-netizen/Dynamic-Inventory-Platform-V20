@@ -298,5 +298,55 @@ export function useTrackerActions(deps: {
     }
   };
 
-  return { handleSyncTracker, handleCreateTracker, handleAddSaleColumn, handleBulkDeleteSaleColumns };
+    const handleManageTrackerColumns = async (newSourceColKeys: string[]) => {
+    if (!activeConfig || !activeConfig.linkedSourcePage) return;
+    const sourcePage = activeConfig.linkedSourcePage;
+    const sourceConfig = state.pageConfigs[sourcePage];
+    const sourceRows = state.pageRows[sourcePage] || [];
+    
+    if (!sourceConfig) {
+      toast("Source page not found.");
+      return;
+    }
+
+    const selectedSourceColumns = sourceConfig.columns.filter((c: any) => newSourceColKeys.includes(c.key) || c.key === "sr");
+    const sourceColKeysSet = new Set(sourceConfig.columns.map((c: any) => c.key));
+    
+    const trackerSpecialColumns = activeConfig.columns.filter((c: any) => !sourceColKeysSet.has(c.key) && c.key !== "sr");
+    const newTrackerColumns = [
+      ...selectedSourceColumns,
+      ...trackerSpecialColumns
+    ];
+
+    const currentTrackerColKeys = new Set(activeConfig.columns.map((c: any) => c.key));
+    const newlyAddedKeys = newSourceColKeys.filter((k: string) => !currentTrackerColKeys.has(k) && k !== "sr");
+    const removedKeys = sourceConfig.columns.map((c: any) => c.key).filter((k: string) => !newSourceColKeys.includes(k) && currentTrackerColKeys.has(k) && k !== "sr");
+    
+    const sourceRowMap = new Map(sourceRows.map((r: any) => [r.id, r]));
+    const updatedTrackerRows = activeRows.map((row: any) => {
+      const sourceRow = sourceRowMap.get(row.id);
+      const newRow = { ...row };
+      
+      for (const key of newlyAddedKeys) {
+        if (sourceRow && sourceRow[key] !== undefined) {
+          newRow[key] = sourceRow[key];
+        } else {
+          delete newRow[key];
+        }
+      }
+      
+      for (const key of removedKeys) {
+        delete newRow[key];
+      }
+      
+      return newRow;
+    });
+
+    const updatedConfig = { ...activeConfig, columns: newTrackerColumns };
+    await handleSaveActivePageSettings(updatedConfig, false);
+    await handleSaveRows(updatedTrackerRows, state.activePage, true);
+    toast("Tracker columns updated successfully.");
+  };
+
+  return { handleSyncTracker, handleCreateTracker, handleAddSaleColumn, handleBulkDeleteSaleColumns, handleManageTrackerColumns };
 }
