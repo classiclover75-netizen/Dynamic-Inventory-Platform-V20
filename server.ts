@@ -852,8 +852,17 @@ app.post('/api/admin/migrate-images', async (_req, res) => {
         if (thisPageMigratedCount > 0) {
           migratedCount += thisPageMigratedCount;
           await cleanupOrphanImages(rows, newRows);
-          await PageRow.deleteMany({ pageName });
-          await PageRow.insertMany(newRows.map((r: any) => ({ pageName, data: r })));
+          
+          const existingDocs = await PageRow.find({ pageName }, { _id: 1 }).lean();
+          const existingIds = existingDocs.map((d: any) => d._id);
+          
+          if (newRows.length > 0) {
+            const baseOrder = Date.now();
+            await PageRow.insertMany(newRows.map((r: any, i: number) => ({ pageName, order: baseOrder + i, data: r })));
+          }
+          if (existingIds.length > 0) {
+            await PageRow.deleteMany({ _id: { $in: existingIds } });
+          }
         }
       }
     } else {
@@ -1692,7 +1701,8 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
 
         await PageRow.deleteMany({ pageName: name }, { session });
         if (newRows.length > 0) {
-          await PageRow.insertMany(newRows.map((row: any) => ({ pageName: name, data: row })), { session });
+          const baseOrder = Date.now();
+          await PageRow.insertMany(newRows.map((row: any, i: number) => ({ pageName: name, order: baseOrder + i, data: row })), { session });
         }
 
         await session.commitTransaction();
@@ -1704,29 +1714,26 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
         const isUnsupported = errMsg.includes('replica set') || errMsg.includes('transaction') || errMsg.includes('not supported') || txnErr.code === 20 || txnErr.code === 263 || txnErr.name === 'IllegalOperation';
         
         if (isUnsupported) {
-          console.warn("Transaction not supported, falling back to sequential delete/insert:", txnErr.message);
-          
-          const backupRows = await PageRow.find({ pageName: name }).lean();
+          console.warn("Transaction not supported, falling back to safe sequential insert/delete:", txnErr.message);
           
           try {
-            await PageRow.deleteMany({ pageName: name });
+            const existingDocs = await PageRow.find({ pageName: name }, { _id: 1 }).lean();
+            const existingIds = existingDocs.map((d: any) => d._id);
+
             if (newRows.length > 0) {
-              await PageRow.insertMany(newRows.map((row: any) => ({ pageName: name, data: row })));
+              const baseOrder = Date.now();
+              await PageRow.insertMany(newRows.map((row: any, i: number) => ({
+                pageName: name,
+                order: baseOrder + i,
+                data: row
+              })));
+            }
+
+            if (existingIds.length > 0) {
+              await PageRow.deleteMany({ _id: { $in: existingIds } });
             }
           } catch (fallbackErr) {
-            console.error("Fallback delete/insert failed, attempting to restore backup...", fallbackErr);
-            try {
-              if (backupRows.length > 0) {
-                await PageRow.insertMany(backupRows.map((r: any) => {
-                  const doc = { ...r };
-                  delete doc._id;
-                  delete doc.__v;
-                  return doc;
-                }));
-              }
-            } catch (restoreErr) {
-              console.error("Critical: Failed to restore backup!", restoreErr);
-            }
+            console.error("Fallback insert/delete failed, old rows remain intact:", fallbackErr);
             throw fallbackErr;
           }
         } else {
