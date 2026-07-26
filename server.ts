@@ -2593,7 +2593,8 @@ app.put('/api/state', async (req, res) => {
 app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
   const _diag = {
     start: Date.now(),
-    imgStart: 0, imgEnd: 0, imgCount: 0,
+    zipSize: 0,
+    extractStart: 0, extractEnd: 0, extractCount: 0, extractBytes: 0,
     jsonStart: 0, jsonEnd: 0,
     orphanStart: 0, orphanEnd: 0,
     pages: [] as {name: string, duration: number, rows: number}[]
@@ -2622,7 +2623,11 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     }
 
-    try { _diag.imgStart = Date.now(); } catch(e) {}
+    try { 
+      _diag.extractStart = Date.now(); 
+      _diag.zipSize = req.file ? req.file.size : 0;
+      console.log(`[IMPORT] Received ZIP payload: ${_diag.zipSize} bytes (${(_diag.zipSize / (1024 * 1024)).toFixed(2)} MB)`);
+    } catch(e) {}
     sendProgress(5, 'Reading backup archive...');
     
     const zip = new AdmZip(req.file.path);
@@ -2636,7 +2641,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
     zipEntries.forEach((entry) => {
       if (entry.entryName.startsWith('uploads/') && !entry.isDirectory) {
         extractedCount++;
-        try { _diag.imgCount++; } catch(e) {}
+        try { _diag.extractCount++; _diag.extractBytes += entry.header.size; } catch(e) {}
         if (totalUploadEntries > 0) {
            const pct = 5 + Math.floor((extractedCount / totalUploadEntries) * 55);
            sendProgress(pct, 'Extracting images...', entry.entryName.replace(/^uploads\//, ''));
@@ -2645,7 +2650,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     });
 
-    try { _diag.imgEnd = Date.now(); _diag.jsonStart = Date.now(); } catch(e) {}
+    try { _diag.extractEnd = Date.now(); _diag.jsonStart = Date.now(); } catch(e) {}
     const dataEntry = zipEntries.find((entry) => entry.entryName === 'data.json');
     if (!dataEntry) {
       const errorMsg = 'data.json not found in zip archive';
@@ -2657,6 +2662,7 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
       }
     }
 
+    try { _diag.extractCount++; _diag.extractBytes += dataEntry.header.size; } catch(e) {}
     let payload; try { payload = JSON.parse(dataEntry.getData().toString('utf8')); } catch(e) { throw new Error("Invalid or corrupted data.json inside zip archive"); }
     sendProgress(65, 'Reading data.json...');
     const { newState, importType, pagesToUpdate, isBundle, isSinglePage } = normalizeBackupPayload(payload);
@@ -2883,18 +2889,18 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
     // DIAGNOSTIC REPORT
     try {
       const totalTime = Date.now() - _diag.start;
-      const imgTime = _diag.imgEnd ? (_diag.imgEnd - _diag.imgStart) / 1000 : 0;
+      const imgTime = _diag.extractEnd ? (_diag.extractEnd - _diag.extractStart) / 1000 : 0;
       const jsonTime = _diag.jsonEnd ? (_diag.jsonEnd - _diag.jsonStart) / 1000 : 0;
       const orphanTime = _diag.orphanEnd ? (_diag.orphanEnd - _diag.orphanStart) / 1000 : 0;
       
       let phases: {name: string, time: number}[] = [
-        {name: 'Image extraction', time: imgTime},
+        {name: 'ZIP extraction/unzip', time: imgTime},
         {name: 'data.json parse', time: jsonTime},
         {name: 'Orphan cleanup', time: orphanTime}
       ];
       
       console.log('=== IMPORT TIMING SUMMARY ===');
-      console.log(`Image extraction: ${imgTime.toFixed(1)}s (${_diag.imgCount} files)`);
+      console.log(`ZIP extraction/unzip: ${imgTime.toFixed(1)}s (${_diag.extractCount} files, ${(_diag.extractBytes / (1024 * 1024)).toFixed(2)} MB written)`);
       console.log(`data.json parse: ${jsonTime.toFixed(1)}s`);
       
       _diag.pages.forEach(p => {
