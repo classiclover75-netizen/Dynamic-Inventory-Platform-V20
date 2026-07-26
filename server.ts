@@ -45,6 +45,10 @@ app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.get('/uploads/thumb/:filename', async (req, res, next) => {
   try {
     const { filename } = req.params;
@@ -859,16 +863,41 @@ app.post('/api/admin/migrate-images', async (_req, res) => {
           migratedCount += thisPageMigratedCount;
           await cleanupOrphanImages(rows, newRows);
           
-          const existingDocs = await PageRow.find({ pageName }, { _id: 1 }).lean();
-          const existingIds = existingDocs.map((d: any) => d._id);
+          const baseOrder = Date.now();
+          const existingDocs = await PageRow.find({ pageName }, { _id: 1, 'data.id': 1 }).lean();
           
-          if (newRows.length > 0) {
-            const baseOrder = Date.now();
-            await PageRow.insertMany(newRows.map((r: any, i: number) => ({ pageName, order: baseOrder + i, data: r })));
-          }
-          if (existingIds.length > 0) {
-            await PageRow.deleteMany({ _id: { $in: existingIds } });
-          }
+          let deduplicatedRows = newRows;
+          const rowMap = new Map();
+          deduplicatedRows.forEach((r: any) => {
+             if (r.id) rowMap.set(String(r.id), r);
+          });
+          deduplicatedRows = Array.from(rowMap.values());
+          
+          const bulkOps: any[] = [];
+          const incomingIdsSet = new Set(deduplicatedRows.map((r: any) => String(r.id)));
+          
+          deduplicatedRows.forEach((row: any, j: number) => {
+            bulkOps.push({
+              updateOne: {
+                filter: { pageName, 'data.id': String(row.id) },
+                update: { $set: { pageName, order: baseOrder + j, data: row } },
+                upsert: true
+              }
+            });
+          });
+          
+          existingDocs.forEach((doc: any) => {
+            const docId = doc.data?.id ? String(doc.data.id) : null;
+            if (!docId || !incomingIdsSet.has(docId)) {
+              bulkOps.push({
+                deleteOne: {
+                  filter: { _id: doc._id }
+                }
+              });
+            }
+          });
+          
+          await executeSafeBulkWrite(bulkOps);
         }
       }
     } else {
@@ -1463,8 +1492,6 @@ app.post('/api/pages', async (req, res) => {
     if (isUsingMongoDB) {
       const newPage = new Page({ name, config });
       await newPage.save();
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1491,10 +1518,6 @@ app.put('/api/pages/:name(*)/rename', async (req, res) => {
         newConfig.linkedSourcePage = newName;
         await Page.findByIdAndUpdate(p._id, { config: newConfig });
       }
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1531,8 +1554,6 @@ app.delete('/api/pages/:name(*)', async (req, res) => {
         await Page.findOneAndDelete({ name: p.name });
         await PageRow.deleteMany({ pageName: p.name });
       }
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1632,8 +1653,6 @@ app.post('/api/pages/update-config', async (req, res) => {
     const finalPageName = name || pageName;
     if (isUsingMongoDB) {
       await Page.findOneAndUpdate({ name: finalPageName }, { config });
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1653,8 +1672,6 @@ app.put('/api/pageConfigs/:name(*)', async (req, res) => {
     const { config } = req.body;
     if (isUsingMongoDB) {
       await Page.findOneAndUpdate({ name }, { config });
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1670,6 +1687,46 @@ app.put('/api/pageConfigs/:name(*)', async (req, res) => {
 
 
 let transactionsSupported: boolean | null = null;
+
+async function executeSafeBulkWrite(bulkOps: any[]) {
+  if (!bulkOps || bulkOps.length === 0) return;
+  let session = null;
+  if (transactionsSupported !== false) {
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    } catch (e) {
+      transactionsSupported = false;
+      session = null;
+    }
+  }
+  try {
+    if (session) {
+      await PageRow.bulkWrite(bulkOps, { session });
+      await session.commitTransaction();
+    } else {
+      await PageRow.bulkWrite(bulkOps);
+    }
+  } catch (txnErr: any) {
+    if (session) {
+      await session.abortTransaction().catch(() => {});
+    }
+    const errMsg = (txnErr.message || '').toLowerCase();
+    const isUnsupported = errMsg.includes('replica set') || errMsg.includes('transaction') || errMsg.includes('not supported') || txnErr.code === 20 || txnErr.code === 263 || txnErr.name === 'IllegalOperation';
+    
+    if (session && isUnsupported) {
+      console.warn("Transaction not supported on write, falling back to non-transactional bulk write:", txnErr.message);
+      transactionsSupported = false;
+      await PageRow.bulkWrite(bulkOps);
+    } else {
+      throw txnErr;
+    }
+  } finally {
+    if (session) {
+      session.endSession();
+    }
+  }
+}
 app.put('/api/pageRows/:name(*)', async (req, res) => {
   const saveStartTime = Date.now();
   console.log(`[SAVE-TIMING] Starting save for pageName: ${req.params.name}, incoming rows: ${req.body.rows ? req.body.rows.length : 0}`);
@@ -1794,8 +1851,6 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
           }
         }
       }
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1807,7 +1862,6 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       }
       await saveLocalDB(db);
     }
-    console.log(`[SAVE-TIMING] Total time before res.json: ${Date.now() - saveStartTime}ms`);
     res.json({ success: true });
   } catch (err: any) {
     if (err.message === 'SHARP_UNSUPPORTED_FORMAT') {
@@ -1889,8 +1943,6 @@ app.patch('/api/pageRows/:name(*)/bulk', async (req, res) => {
           }
         }
       }
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -1951,8 +2003,6 @@ app.patch('/api/pageRows/:name(*)/:rowId', async (req, res) => {
       const processedRow = await processRowImages(newRowData, forceSave);
 
       await PageRow.findByIdAndUpdate(rowToUpdate._id, { data: processedRow });
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -2028,8 +2078,6 @@ app.post('/api/pageRows/:name(*)/append', async (req, res) => {
       if (recordsToInsert.length > 0) {
         await PageRow.insertMany(recordsToInsert);
       }
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -2063,8 +2111,6 @@ app.delete('/api/pageRows/:name(*)/:rowId', async (req, res) => {
       deletedRowData = rowToDelete.data;
       await PageRow.findByIdAndDelete(rowToDelete._id);
       
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -2094,8 +2140,6 @@ app.put('/api/settings', async (req, res) => {
     const { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder, sourceSuggestionsEnabled } = req.body;
     if (isUsingMongoDB) {
       await AppSettings.findOneAndUpdate({}, { globalCopyBoxes, globalRowNoWidth, maxSearchHistory, pageOrder, sourceSuggestionsEnabled }, { upsert: true });
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
@@ -2336,17 +2380,43 @@ app.put('/api/state', async (req, res) => {
             { upsert: true }
           );
 
-          await PageRow.deleteMany({ pageName });
-
-          const rows = processedPageRows[pageName] || [];
-          const rowsToInsert = rows.map((row: any) => ({ pageName, data: row }));
-          if (rowsToInsert.length > 0) {
-            await PageRow.insertMany(rowsToInsert);
-          }
+          const baseOrder = Date.now();
+          const existingDocs = await PageRow.find({ pageName }, { _id: 1, 'data.id': 1 }).lean();
+          
+          let rows = processedPageRows[pageName] || [];
+          const rowMap = new Map();
+          rows.forEach((r: any) => {
+             if (r.id) rowMap.set(String(r.id), r);
+          });
+          rows = Array.from(rowMap.values());
+          
+          const bulkOps: any[] = [];
+          const incomingIdsSet = new Set(rows.map((r: any) => String(r.id)));
+          
+          rows.forEach((row: any, i: number) => {
+            bulkOps.push({
+              updateOne: {
+                filter: { pageName, 'data.id': String(row.id) },
+                update: { $set: { pageName, order: baseOrder + i, data: row } },
+                upsert: true
+              }
+            });
+          });
+          
+          existingDocs.forEach((doc: any) => {
+            const docId = doc.data?.id ? String(doc.data.id) : null;
+            if (!docId || !incomingIdsSet.has(docId)) {
+              bulkOps.push({
+                deleteOne: {
+                  filter: { _id: doc._id }
+                }
+              });
+            }
+          });
+          
+          await executeSafeBulkWrite(bulkOps);
         }
-        console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
-      await triggerLocalBackup();
+        await triggerLocalBackup();
       } else {
         // Fetch all existing rows to cleanup images
         const allOldPageRows = await getSortedPageRows({});
@@ -2365,33 +2435,65 @@ app.put('/api/state', async (req, res) => {
         const snapSettings = await AppSettings.find({});
 
         try {
-          // Clear existing data
-          await Page.deleteMany({});
-          await PageRow.deleteMany({});
-          await AppSettings.deleteMany({});
+          // Clear absent pages from Page collection
+          const importedPages = newState.pages || [];
+          await Page.deleteMany({ name: { $nin: importedPages } });
           
-          // Insert new pages (without rows)
-          const pagesToInsert = newState.pages.map((name: string) => ({
-            name,
-            config: newState.pageConfigs[name] || {}
-          }));
-          
-          if (pagesToInsert.length > 0) {
-            await Page.insertMany(pagesToInsert);
+          // Upsert pages that are present
+          for (const pageName of importedPages) {
+            await Page.findOneAndUpdate(
+              { name: pageName },
+              { name: pageName, config: newState.pageConfigs[pageName] || {} },
+              { upsert: true }
+            );
           }
 
-          // Insert all rows
-          const allRowsToInsert: any[] = [];
-          newState.pages.forEach((pageName: string) => {
-            const rows = processedPageRows[pageName] || [];
-            rows.forEach((row: any) => {
-              allRowsToInsert.push({ pageName, data: row });
+          // Build bulkOps for rows
+          const bulkOps: any[] = [];
+          const baseOrder = Date.now();
+          
+          const existingDocs = await PageRow.find({}, { _id: 1, 'data.id': 1, pageName: 1 }).lean();
+          
+          const importedRowsByPage = new Map();
+          importedPages.forEach((pageName: string) => {
+            let rows = processedPageRows[pageName] || [];
+            const rowMap = new Map();
+            rows.forEach((r: any) => {
+              if (r.id) rowMap.set(String(r.id), r);
+            });
+            rows = Array.from(rowMap.values());
+            importedRowsByPage.set(pageName, rows);
+            
+            rows.forEach((row: any, i: number) => {
+              bulkOps.push({
+                updateOne: {
+                  filter: { pageName, 'data.id': String(row.id) },
+                  update: { $set: { pageName, order: baseOrder + i, data: row } },
+                  upsert: true
+                }
+              });
             });
           });
-
-          if (allRowsToInsert.length > 0) {
-            await PageRow.insertMany(allRowsToInsert);
-          }
+          
+          existingDocs.forEach((doc: any) => {
+            const pageName = doc.pageName;
+            if (!importedPages.includes(pageName)) {
+              bulkOps.push({
+                deleteOne: { filter: { _id: doc._id } }
+              });
+            } else {
+              const docId = doc.data?.id ? String(doc.data.id) : null;
+              const incomingRowsForPage = importedRowsByPage.get(pageName) || [];
+              const incomingIds = new Set(incomingRowsForPage.map((r: any) => String(r.id)));
+              if (!docId || !incomingIds.has(docId)) {
+                bulkOps.push({
+                  deleteOne: { filter: { _id: doc._id } }
+                });
+              }
+            }
+          });
+          
+          await executeSafeBulkWrite(bulkOps);
           
           // Update settings
           await AppSettings.findOneAndUpdate({}, {
@@ -2401,9 +2503,7 @@ app.put('/api/state', async (req, res) => {
             sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
           }, { upsert: true });
 
-          console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
-      await triggerLocalBackup();
+          await triggerLocalBackup();
         } catch (importErr: any) {
           console.error("Import failed, rolling back to snapshot:", importErr);
           await Page.deleteMany({});
@@ -2575,14 +2675,41 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
             { upsert: true }
           );
 
-          // Delete only the rows belonging to that specific page
-          await PageRow.deleteMany({ pageName });
-
-          // Insert only the new rows for that page
-          const rowsToInsert = rows.map((row: any) => ({ pageName, data: row }));
-          if (rowsToInsert.length > 0) {
-            await PageRow.insertMany(rowsToInsert);
-          }
+          const baseOrder = Date.now();
+          const existingDocs = await PageRow.find({ pageName }, { _id: 1, 'data.id': 1 }).lean();
+          
+          let deduplicatedRows = rows;
+          const rowMap = new Map();
+          deduplicatedRows.forEach((r: any) => {
+             if (r.id) rowMap.set(String(r.id), r);
+          });
+          deduplicatedRows = Array.from(rowMap.values());
+          
+          const bulkOps: any[] = [];
+          const incomingIdsSet = new Set(deduplicatedRows.map((r: any) => String(r.id)));
+          
+          deduplicatedRows.forEach((row: any, j: number) => {
+            bulkOps.push({
+              updateOne: {
+                filter: { pageName, 'data.id': String(row.id) },
+                update: { $set: { pageName, order: baseOrder + j, data: row } },
+                upsert: true
+              }
+            });
+          });
+          
+          existingDocs.forEach((doc: any) => {
+            const docId = doc.data?.id ? String(doc.data.id) : null;
+            if (!docId || !incomingIdsSet.has(docId)) {
+              bulkOps.push({
+                deleteOne: {
+                  filter: { _id: doc._id }
+                }
+              });
+            }
+          });
+          
+          await executeSafeBulkWrite(bulkOps);
         }
       } else {
         // Fetch all existing rows to cleanup images
@@ -2598,37 +2725,70 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
         await cleanupOrphanImages(allOldRows, allNewRows, true);
         await diskSweepOrphans(allNewRows);
 
-        // Clear existing data
-        await Page.deleteMany({});
-        await PageRow.deleteMany({});
-        await AppSettings.deleteMany({});
+        // Clear absent pages from Page collection
+        const importedPages = newState.pages || [];
+        await Page.deleteMany({ name: { $nin: importedPages } });
         
-        // Insert new pages (without rows)
-        const pagesToInsert = newState.pages.map((name: string) => ({
-          name,
-          config: newState.pageConfigs[name] || {}
-        }));
-        
-        if (pagesToInsert.length > 0) {
-          await Page.insertMany(pagesToInsert);
+        // Upsert pages that are present
+        for (const pageName of importedPages) {
+          await Page.findOneAndUpdate(
+            { name: pageName },
+            { name: pageName, config: newState.pageConfigs[pageName] || {} },
+            { upsert: true }
+          );
         }
 
-        // Insert all rows
-        const allRowsToInsert: any[] = [];
-        const totalPages = newState.pages.length;
-        newState.pages.forEach((pageName: string, i: number) => {
+        // Build bulkOps for rows
+        const bulkOps: any[] = [];
+        const baseOrder = Date.now();
+        
+        const existingDocs = await PageRow.find({}, { _id: 1, 'data.id': 1, pageName: 1 }).lean();
+        
+        const importedRowsByPage = new Map();
+        const totalPages = importedPages.length;
+        importedPages.forEach((pageName: string, i: number) => {
+          let rows = processedPageRows[pageName] || [];
+          const rowMap = new Map();
+          rows.forEach((r: any) => {
+            if (r.id) rowMap.set(String(r.id), r);
+          });
+          rows = Array.from(rowMap.values());
+          importedRowsByPage.set(pageName, rows);
+          
           const pct = 70 + Math.floor((i / Math.max(1, totalPages)) * 23);
-          const rows = processedPageRows[pageName] || [];
           sendProgress(pct, `Importing page "${pageName}" (${rows.length} rows)...`);
-          rows.forEach((row: any) => {
-            allRowsToInsert.push({ pageName, data: row });
+          
+          rows.forEach((row: any, j: number) => {
+            bulkOps.push({
+              updateOne: {
+                filter: { pageName, 'data.id': String(row.id) },
+                update: { $set: { pageName, order: baseOrder + j, data: row } },
+                upsert: true
+              }
+            });
           });
         });
-
-        if (allRowsToInsert.length > 0) {
-          sendProgress(93, 'Writing to database...');
-          await PageRow.insertMany(allRowsToInsert);
-        }
+        
+        existingDocs.forEach((doc: any) => {
+          const pageName = doc.pageName;
+          if (!importedPages.includes(pageName)) {
+            bulkOps.push({
+              deleteOne: { filter: { _id: doc._id } }
+            });
+          } else {
+            const docId = doc.data?.id ? String(doc.data.id) : null;
+            const incomingRowsForPage = importedRowsByPage.get(pageName) || [];
+            const incomingIds = new Set(incomingRowsForPage.map((r: any) => String(r.id)));
+            if (!docId || !incomingIds.has(docId)) {
+              bulkOps.push({
+                deleteOne: { filter: { _id: doc._id } }
+              });
+            }
+          }
+        });
+        
+        sendProgress(93, 'Writing to database...');
+        await executeSafeBulkWrite(bulkOps);
         
         // Update settings
         await AppSettings.findOneAndUpdate({}, {
@@ -2638,8 +2798,6 @@ app.post('/api/import-zip', upload.single('backup'), async (req, res) => {
             sourceSuggestionsEnabled: newState.sourceSuggestionsEnabled
         }, { upsert: true });
       }
-      console.log(`[SAVE-TIMING] After PageRow.bulkWrite completes: ${Date.now() - saveStartTime}ms`);
-      console.log(`[SAVE-TIMING] Reached triggerLocalBackup: ${Date.now() - saveStartTime}ms`);
       await triggerLocalBackup();
     } else {
       const db = await getLocalDB();
