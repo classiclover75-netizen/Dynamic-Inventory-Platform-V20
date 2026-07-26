@@ -83,7 +83,7 @@ export function useTrackerActions(deps: {
         }
       });
 
-      const response = await putRows(trackerName, repairedTrackerRows);
+      const response = await putRows(trackerName, repairedTrackerRows, true);
       if (!response.ok) throw new Error("Failed to sync to server");
 
       setState((prev) => ({
@@ -176,7 +176,7 @@ export function useTrackerActions(deps: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trackerName, config: newConfig }),
       });
-      await putRows(trackerName, newRows);
+      await putRows(trackerName, newRows, true);
 
       setState((prev) => ({
         ...prev,
@@ -351,7 +351,7 @@ export function useTrackerActions(deps: {
     await handleSaveActivePageSettings(updatedConfig, false);
     
     // Use putRows directly to replace all rows for the active page, avoiding duplicates
-    const res = await putRows(state.activePage, updatedTrackerRows);
+    const res = await putRows(state.activePage, updatedTrackerRows, true);
     if (!res.ok) {
        toast("Failed to update tracker columns. Please try again.");
        throw new Error("Failed to save rows");

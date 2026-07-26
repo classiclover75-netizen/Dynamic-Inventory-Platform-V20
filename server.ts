@@ -294,7 +294,13 @@ async function processRowImages(row: any, forceSave = false, providedCache?: Map
       // The value is already a local filename reference or regular text.
       // DO NOT re-process, DO NOT rename, DO NOT check if it matches row.id.
       // Allow multiple rows to share this exact filename.
+      // Detect "already processed" by checking whether the value is a plain local filename that exists in uploads
       if (!imgVal.startsWith('http') && !imgVal.startsWith('data:') && !imgVal.startsWith('blob:')) {
+        // Fast path: if it's already a local filename in UPLOADS_DIR, skip it entirely
+        if (fs.existsSync(path.join(UPLOADS_DIR, imgVal))) {
+          continue;
+        }
+        // If it doesn't exist but also isn't a URL, still skip (it might just be regular text)
         continue;
       }
 
@@ -1655,6 +1661,7 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
     const { name } = req.params;
     const { rows } = req.body;
     const forceSave = req.query.force === 'true';
+    const skipImageProcessing = req.query.skipImageProcessing === 'true';
     
     const incomingIds = (rows || []).map((r: any) => String(r.id)).filter((id: string) => id && id !== 'undefined' && id !== 'null');
     let existingOtherIds = new Set<string>();
@@ -1692,7 +1699,7 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
     if (isUsingMongoDB) {
       const pageConfig = await Page.findOne({ name });
       const isTracker = pageConfig?.config?.linkedSourcePage;
-      const newRows = isTracker ? rowsToProcess : await processRowsConcurrently(rowsToProcess, 50, forceSave);
+      const newRows = (isTracker || skipImageProcessing) ? rowsToProcess : await processRowsConcurrently(rowsToProcess, 50, forceSave);
       
       let session = null;
       try {
@@ -1750,7 +1757,7 @@ app.put('/api/pageRows/:name(*)', async (req, res) => {
       const page = db.pages.find((p: any) => p.name === name);
       if (page) {
         const isTracker = page.config?.linkedSourcePage;
-        const newRows = isTracker ? rowsToProcess : await processRowsConcurrently(rowsToProcess, 50, forceSave);
+        const newRows = (isTracker || skipImageProcessing) ? rowsToProcess : await processRowsConcurrently(rowsToProcess, 50, forceSave);
         page.rows = newRows;
       }
       await saveLocalDB(db);
@@ -1787,7 +1794,7 @@ app.patch('/api/pageRows/:name(*)/bulk', async (req, res) => {
           const rowToUpdate = rowMap.get(String(rowId));
           if (rowToUpdate) {
             const newRowData = { ...rowToUpdate.data, ...(upds as any) };
-            const processedRow = await processRowImages(newRowData, forceSave);
+            const processedRow = skipImageProcessing ? newRowData : await processRowImages(newRowData, forceSave);
             bulkOps.push({
               updateOne: {
                 filter: { _id: rowToUpdate._id },

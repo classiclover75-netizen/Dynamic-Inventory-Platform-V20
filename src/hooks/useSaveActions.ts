@@ -160,11 +160,11 @@ export function useSaveActions(deps: {
         }
         
         if (Object.keys(updatesObj).length > 0) {
-          await bulkPatchRows(trackerName, { updates: updatesObj });
+          await bulkPatchRows(trackerName, { updates: updatesObj }, true);
         }
 
         if (appendRows.length > 0) {
-          await appendPageRows(trackerName, appendRows);
+          await appendPageRows(trackerName, appendRows, false, true);
         }
 
         if (updatedTracker) {
