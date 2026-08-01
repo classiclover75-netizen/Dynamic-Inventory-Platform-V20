@@ -20,10 +20,11 @@ export function buildRetiredOverview(rows: any[], columns: any[]): RetiredSource
   const saleCols = columns.filter((c: any) => c.type === 'sale_tracker');
   const sourceMap = new Map<string, RetiredSourceOverview>();
 
+  const firstDisplayCol = columns.find((c: any) => c.key !== 'sr' && c.key !== 'total_qty' && !c.archived && c.type !== 'image' && c.type !== 'system_serial');
+
   rows.forEach(row => {
     // Find itemLabel
     let itemLabel = "Row No.";
-    const firstDisplayCol = columns.find((c: any) => c.key !== 'sr' && c.key !== 'total_qty' && !c.archived && c.type !== 'image' && c.type !== 'system_serial');
     if (firstDisplayCol && row[firstDisplayCol.key]) {
       itemLabel = String(row[firstDisplayCol.key]);
     } else if (row.sr) {
