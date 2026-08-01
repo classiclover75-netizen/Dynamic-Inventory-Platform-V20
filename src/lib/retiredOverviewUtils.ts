@@ -1,0 +1,86 @@
+import { parseMultiSource } from './appUtils';
+import { isRetired } from './sourceArchiveUtils';
+
+export interface RetiredItemInfo {
+  itemLabel: string;
+  retiredQty: number;
+  totalSales: number;
+  perSaleColumn: { colName: string; qty: number }[];
+}
+
+export interface RetiredSourceOverview {
+  sourceName: string;
+  itemCount: number;
+  totalRetiredQty: number;
+  items: RetiredItemInfo[];
+}
+
+export function buildRetiredOverview(rows: any[], columns: any[]): RetiredSourceOverview[] {
+  if (!rows || !columns) return [];
+  const saleCols = columns.filter((c: any) => c.type === 'sale_tracker');
+  const sourceMap = new Map<string, RetiredSourceOverview>();
+
+  rows.forEach(row => {
+    // Find itemLabel
+    let itemLabel = "Row No.";
+    const firstDisplayCol = columns.find((c: any) => c.key !== 'sr' && c.key !== 'total_qty' && !c.archived && c.type !== 'image' && c.type !== 'system_serial');
+    if (firstDisplayCol && row[firstDisplayCol.key]) {
+      itemLabel = String(row[firstDisplayCol.key]);
+    } else if (row.sr) {
+      itemLabel = `Row No. ${row.sr}`;
+    }
+
+    if (!row.total_qty) return;
+    
+    const multiSource = parseMultiSource(row.total_qty);
+    const retiredSources = multiSource.filter(isRetired);
+
+    if (retiredSources.length === 0) return;
+
+    // Calculate sales for this row
+    const rowSalesBySource = new Map<string, { colName: string; qty: number }[]>();
+    const rowSalesTotalBySource = new Map<string, number>();
+
+    saleCols.forEach((saleCol: any) => {
+      if (!row[saleCol.key]) return;
+      const saleVal = parseMultiSource(row[saleCol.key]);
+      saleVal.forEach((s: any) => {
+        const sqty = parseFloat(String(s.qty)) || 0;
+        if (sqty > 0) {
+          if (!rowSalesBySource.has(s.source)) rowSalesBySource.set(s.source, []);
+          rowSalesBySource.get(s.source)!.push({ colName: saleCol.name, qty: sqty });
+          rowSalesTotalBySource.set(s.source, (rowSalesTotalBySource.get(s.source) || 0) + sqty);
+        }
+      });
+    });
+
+    retiredSources.forEach(rs => {
+      const sourceName = rs.source;
+      const retiredQty = parseFloat(String(rs.qty)) || 0;
+      
+      const salesArr = rowSalesBySource.get(sourceName) || [];
+      const tSales = rowSalesTotalBySource.get(sourceName) || 0;
+
+      if (!sourceMap.has(sourceName)) {
+        sourceMap.set(sourceName, {
+          sourceName,
+          itemCount: 0,
+          totalRetiredQty: 0,
+          items: []
+        });
+      }
+
+      const overview = sourceMap.get(sourceName)!;
+      overview.itemCount += 1;
+      overview.totalRetiredQty += retiredQty;
+      overview.items.push({
+        itemLabel,
+        retiredQty,
+        totalSales: tSales,
+        perSaleColumn: salesArr
+      });
+    });
+  });
+
+  return Array.from(sourceMap.values()).sort((a, b) => b.totalRetiredQty - a.totalRetiredQty);
+}

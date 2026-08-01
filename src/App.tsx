@@ -1,4 +1,6 @@
+import { RetiredSourcesOverviewModal } from "./components/RetiredSourcesOverviewModal";
 import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from "react";
+
 import { createPortal } from "react-dom";
 import {
   Settings,
@@ -440,6 +442,7 @@ function AppContent() {
   } | null>(null);
   const [sumSelectedSources, setSumSelectedSources] = useState<string[]>([]);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [isRetiredSourcesOverviewOpen, setRetiredSourcesOverviewOpen] = useState(false);
   const [isArchiveDeleteModalOpen, setIsArchiveDeleteModalOpen] =
     useState(false);
   const [archiveDeleteSearchQuery, setArchiveDeleteSearchQuery] = useState("");
@@ -2490,6 +2493,17 @@ function AppContent() {
         rows={state.pageRows[state.activePage] || []}
       />
 
+      
+      <RetiredSourcesOverviewModal
+        isOpen={isRetiredSourcesOverviewOpen}
+        onClose={() => {
+          setRetiredSourcesOverviewOpen(false);
+          setIsArchiveModalOpen(true);
+        }}
+        rows={activeRows}
+        columns={activeConfig?.columns || []}
+      />
+
       {/* ConfirmationModal is now global */}
 
       
@@ -3281,16 +3295,29 @@ function AppContent() {
               <h3 className="text-lg font-bold text-[#2b579a]">
                 Archive Columns
               </h3>
-              <button
-                onClick={() => {
-                  setIsArchiveModalOpen(false);
-                  setIsArchiveDeleteModalOpen(true);
-                  setSelectedArchiveCols(new Set());
-                }}
-                className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded shadow-sm text-xs font-bold flex items-center gap-1 transition-colors"
-              >
-                🗑️ Delete Columns
-              </button>
+              <div className="flex gap-2">
+                {activeConfig?.isTrackerPage && (
+                  <button
+                    onClick={() => {
+                      setIsArchiveModalOpen(false);
+                      setRetiredSourcesOverviewOpen(true);
+                    }}
+                    className="px-3 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded shadow-sm text-xs font-bold flex items-center gap-1 transition-colors"
+                  >
+                    🗄️ Retired Sources
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setIsArchiveModalOpen(false);
+                    setIsArchiveDeleteModalOpen(true);
+                    setSelectedArchiveCols(new Set());
+                  }}
+                  className="px-3 py-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded shadow-sm text-xs font-bold flex items-center gap-1 transition-colors"
+                >
+                  🗑️ Delete Columns
+                </button>
+              </div>
             </div>
 
             <p className="text-xs text-gray-500 mb-3">
