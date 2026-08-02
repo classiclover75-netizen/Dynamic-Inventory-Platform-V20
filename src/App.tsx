@@ -2503,6 +2503,8 @@ function AppContent() {
         }}
         rows={activeRows}
         columns={activeConfig?.columns || []}
+        initialColWidths={activeConfig?.retiredOverviewColWidths || {}}
+        onSaveColWidths={(w) => handleSaveActivePageSettings({ ...activeConfig, retiredOverviewColWidths: w } as any, false)}
       />
 
       {/* ConfirmationModal is now global */}

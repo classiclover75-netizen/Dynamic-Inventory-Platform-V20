@@ -13,13 +13,17 @@ export function RetiredSourcesOverviewModal({
   onClose,
   rows,
   columns,
-  pageName
+  pageName,
+  initialColWidths = {},
+  onSaveColWidths
 }: {
   isOpen: boolean;
   onClose: () => void;
   rows: any[];
   columns: any[];
   pageName: string;
+  initialColWidths?: Record<string, number>;
+  onSaveColWidths?: (w: Record<string, number>) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -29,6 +33,55 @@ export function RetiredSourcesOverviewModal({
   const [showSourceDropdown, setShowSourceDropdown] = useState(false);
   const [sourceSearchQuery, setSourceSearchQuery] = useState("");
   const [showSaleColumns, setShowSaleColumns] = useState(true);
+
+  const [colWidths, setColWidths] = useState<Record<string, number>>(initialColWidths);
+  const colWidthsRef = React.useRef(colWidths);
+
+  React.useEffect(() => {
+    colWidthsRef.current = colWidths;
+  }, [colWidths]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setColWidths(initialColWidths || {});
+    }
+  }, [isOpen, initialColWidths]);
+
+  const startResize = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    const th = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const startX = e.clientX;
+    const startW = colWidths[id] ?? th.offsetWidth;
+    document.body.style.userSelect = 'none';
+    
+    const onMove = (ev) => {
+      const newW = Math.max(60, startW + (ev.clientX - startX));
+      setColWidths(prev => ({ ...prev, [id]: newW }));
+    };
+    
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+      if (onSaveColWidths) {
+        onSaveColWidths(colWidthsRef.current);
+      }
+    };
+    
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const resetCol = (id: string) => {
+    setColWidths(prev => {
+      const n = { ...prev };
+      delete n[id];
+      if (onSaveColWidths) {
+        onSaveColWidths(n);
+      }
+      return n;
+    });
+  };
 
   const overviewData = useMemo(() => {
     if (!isOpen) return [];
@@ -290,6 +343,7 @@ export function RetiredSourcesOverviewModal({
     }
   };
 
+  const colIds = ["__retired_source", "__total_sales", ...sourceColumns.map(c => c.key)];
   return (
     <Modal 
       isOpen={isOpen} 
@@ -398,19 +452,27 @@ export function RetiredSourcesOverviewModal({
         </div>
         <div className="flex-1 overflow-auto border rounded relative bg-white">
           <table className="w-full text-sm border-collapse">
+            <colgroup>
+              {colIds.map(id => (
+                <col key={id} style={colWidths[id] ? { width: colWidths[id] + 'px' } : undefined} />
+              ))}
+            </colgroup>
             <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
               <tr>
-                <th className="p-2 border text-left min-w-[120px] bg-purple-50 text-purple-800">
+                <th className="p-2 border text-left bg-purple-50 text-purple-800 relative">
                   <div className="flex items-center gap-1">📦 Retired Source</div>
+                  <div onMouseDown={(e) => startResize(e, "__retired_source")} onDoubleClick={() => resetCol("__retired_source")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                 </th>
-                <th className="p-2 border text-left min-w-[100px] bg-blue-50 text-blue-800">
+                <th className="p-2 border text-left bg-blue-50 text-blue-800 relative">
                   <div className="flex items-center gap-1">📈 Total Sales</div>
+                  <div onMouseDown={(e) => startResize(e, "__total_sales")} onDoubleClick={() => resetCol("__total_sales")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                 </th>
                 {sourceColumns.map((c, i) => (
-                  <th key={c.key} className="p-2 border text-left">
+                  <th key={c.key} className="p-2 border text-left relative">
                     <div className="flex items-center gap-1">
                       {i + 1}. {c.name} {c.locked && "🔒"}
                     </div>
+                    <div onMouseDown={(e) => startResize(e, c.key)} onDoubleClick={() => resetCol(c.key)} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                   </th>
                 ))}
               </tr>
@@ -431,7 +493,7 @@ export function RetiredSourcesOverviewModal({
                     return (
                       <td
                         key={c.key}
-                        className="p-2 border whitespace-pre-wrap break-words min-w-[150px]"
+                        className="p-2 border whitespace-pre-wrap break-words"
                       >
                         {(c.type === "image" || c.type === "file") &&
                         rawVal &&
