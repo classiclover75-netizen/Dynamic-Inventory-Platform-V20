@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver';
 import { Search, FileSpreadsheet } from 'lucide-react';
 import { buildFlatRetiredRows, buildRetiredOverview, FlatRetiredRow } from '../lib/retiredOverviewUtils';
 import { parseMultiSource } from '../lib/appUtils';
+import { isRetired, sumActive } from '../lib/sourceArchiveUtils';
 import { Modal, Button, Input } from './ui';
 import { useToast } from './ToastProvider';
 
@@ -87,8 +88,25 @@ export function RetiredSourcesOverviewModal({
        const totalSales = saleCols.reduce((sum: number, c: any) => sum + (parseFloat(String(row[c.key] || 0)) || 0), 0);
        return String(total - totalSales);
     }
-    if (col.type === "sale_tracker") {
-      return row[col.key] || "0";
+    if (col.type === "sale_tracker" || col.key === "total_qty") {
+      const rawVal = String(row[col.key] || "0");
+      if (rawVal.trim().startsWith("[")) {
+        try {
+          const sources = parseMultiSource(rawVal);
+          if (sources.length === 0) return "0";
+          if (sources.length === 1 && sources[0].source === "Default" && !isRetired(sources[0])) {
+            return String(sources[0].qty);
+          }
+          const lines = sources.map((s: any) => `${s.source}: ${s.qty}${isRetired(s) ? ' (Retired)' : ''}`);
+          if (sources.length > 1) {
+             lines.push(`Total: ${sumActive(sources)}`);
+          }
+          return lines.join("\n");
+        } catch(e) {
+          return rawVal;
+        }
+      }
+      return rawVal;
     }
     return row[col.key] || "";
   };
