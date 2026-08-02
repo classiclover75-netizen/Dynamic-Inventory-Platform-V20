@@ -2495,6 +2495,7 @@ function AppContent() {
 
       
       <RetiredSourcesOverviewModal
+        pageName={state.activePage}
         isOpen={isRetiredSourcesOverviewOpen}
         onClose={() => {
           setRetiredSourcesOverviewOpen(false);

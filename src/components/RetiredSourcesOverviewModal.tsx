@@ -1,173 +1,419 @@
-import React, { useState, useMemo } from 'react';
-import { buildRetiredOverview, RetiredSourceOverview, RetiredItemInfo } from '../lib/retiredOverviewUtils';
+import React, { useState, useMemo, useDeferredValue } from 'react';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import { Search, FileSpreadsheet } from 'lucide-react';
+import { buildFlatRetiredRows, buildRetiredOverview, FlatRetiredRow } from '../lib/retiredOverviewUtils';
+import { parseMultiSource } from '../lib/appUtils';
+import { Modal, Button, Input } from './ui';
+import { useToast } from './ToastProvider';
 
 export function RetiredSourcesOverviewModal({
   isOpen,
   onClose,
   rows,
-  columns
+  columns,
+  pageName
 }: {
   isOpen: boolean;
   onClose: () => void;
   rows: any[];
   columns: any[];
+  pageName: string;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSource, setSelectedSource] = useState<RetiredSourceOverview | null>(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
   const overviewData = useMemo(() => {
     if (!isOpen) return [];
     return buildRetiredOverview(rows, columns);
   }, [isOpen, rows, columns]);
 
-  const filteredData = useMemo(() => {
-    if (!searchQuery) return overviewData;
-    return overviewData.filter(s => s.sourceName.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [overviewData, searchQuery]);
+  const flatRows = useMemo(() => {
+    if (!isOpen) return [];
+    return buildFlatRetiredRows(rows, columns);
+  }, [isOpen, rows, columns]);
 
-  if (!isOpen) return null;
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedSources(new Set(overviewData.map(s => s.sourceName)));
+      setSearchQuery("");
+    }
+  }, [isOpen, overviewData]);
 
-  return (
-    <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg w-[600px] shadow-2xl flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            {selectedSource ? (
-              <>
-                <button onClick={() => setSelectedSource(null)} className="mr-2 text-gray-500 hover:text-gray-800 bg-transparent border-0 cursor-pointer">
-                  ← Back
-                </button>
-                <span className="text-purple-700">📦 {selectedSource.sourceName}</span>
-              </>
-            ) : (
-              "🗄️ Retired Sources Overview"
-            )}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors bg-transparent border-0 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
+  const getImageUrl = (val: any) => {
+    if (!val) return "";
+    let data = val;
+    if (Array.isArray(val) && val.length > 0) {
+      data = val[0];
+    }
+    const imgData = typeof data === "object" && data !== null ? data.data || data.url || data.name : data;
+    if (!imgData) return "";
+    if (typeof imgData === "string" && (imgData.startsWith("data:image") || /^https?:\/\//i.test(imgData))) {
+      return imgData;
+    }
+    return `/uploads/${imgData}`;
+  };
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col p-4 bg-gray-50">
-          {selectedSource ? (
-            <div className="flex-1 overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-white p-3 rounded shadow-sm border border-gray-200">
-                  <div className="text-xs text-gray-500 font-bold uppercase">Total Retired Qty</div>
-                  <div className="text-2xl font-black text-purple-700">{selectedSource.totalRetiredQty}</div>
-                </div>
-                <div className="bg-white p-3 rounded shadow-sm border border-gray-200">
-                  <div className="text-xs text-gray-500 font-bold uppercase">Affected Items</div>
-                  <div className="text-2xl font-black text-blue-700">{selectedSource.itemCount}</div>
-                </div>
-              </div>
+  const getCellValue = (row: FlatRetiredRow, col: any) => {
+    if (col.key === "sr") {
+      const rowIndex = rows.findIndex((r) => r.id === row._originalRowId);
+      return String(rowIndex + 1);
+    }
+    if (col.key === "remaining_qty") {
+       const rawTotal = String(row.total_qty || "");
+       if (rawTotal.trim().startsWith("[")) {
+         try {
+            const totalSources = parseMultiSource(row.total_qty);
+            const saleCols = columns.filter((c) => c.type === "sale_tracker");
+            const remainingSources = totalSources.map((ts: any) => {
+               let totalSaleForSource = 0;
+               saleCols.forEach(sc => {
+                  const saleArr = parseMultiSource(row[sc.key]);
+                  const sSale = saleArr.find((ss:any) => ss.source === ts.source);
+                  if (sSale) totalSaleForSource += parseFloat(String(sSale.qty)) || 0;
+               });
+               return { ...ts, qty: (parseFloat(String(ts.qty)) || 0) - totalSaleForSource };
+            });
+            return remainingSources.reduce((sum: number, ts: any) => sum + ts.qty, 0).toString();
+         } catch(e) {
+            return "0";
+         }
+       }
+       const total = parseFloat(String(row.total_qty || 0)) || 0;
+       const saleCols = columns.filter((c) => c.type === "sale_tracker");
+       const totalSales = saleCols.reduce((sum: number, c: any) => sum + (parseFloat(String(row[c.key] || 0)) || 0), 0);
+       return String(total - totalSales);
+    }
+    if (col.type === "sale_tracker") {
+      return row[col.key] || "0";
+    }
+    return row[col.key] || "";
+  };
 
-              <div className="space-y-2">
-                {selectedSource.items.map((item, i) => (
-                  <ItemRow key={i} item={item} />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
-              <div className="mb-3">
-                <input
-                  type="text"
-                  placeholder="🔍 Search retired sources..."
-                  className="w-full border-2 border-[#d7dde1] p-2 rounded-md outline-none focus:border-purple-500 text-sm font-semibold transition-colors"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+  const highlightText = (text: string, query: string) => {
+    const cleanText = text
+      ? String(text)
+          .replace(/<[^>]*>/g, "")
+          .replace(/<br\s*\/?>/gi, " ")
+          .replace(/&nbsp;/gi, " ")
+      : "";
+    if (!query || !cleanText) return cleanText;
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return cleanText;
+    const escapedStrings = tokens.map((t) => {
+      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      let bStart = "";
+      let bEnd = "";
+      if (/^[0-9]/.test(t)) {
+        bStart = "(?<![0-9])";
+        bEnd = "";
+      } else if (/^[a-zA-Z]/.test(t)) {
+        if (t.length <= 2) {
+          bStart = "(?<![a-zA-Z])";
+          bEnd = "(?![a-zA-Z]{2,})";
+        } else {
+          bStart = "";
+          bEnd = "";
+        }
+      }
+      return bStart + escaped + bEnd;
+    });
+    const regex = new RegExp("(" + escapedStrings.join("|") + ")", "gi");
+    const parts = cleanText.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? (
+        <span
+          key={i}
+          className="bg-yellow-300 text-black font-bold px-[1px] rounded-sm"
+        >
+          {part}
+        </span>
+      ) : (
+        part
+      ),
+    );
+  };
 
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                {filteredData.length === 0 ? (
-                  <div className="text-center p-8 text-gray-500 bg-white rounded border border-gray-200">
-                    {searchQuery ? "No matching sources found." : "No retired sources found in this tracker."}
-                  </div>
-                ) : (
-                  filteredData.map((s, i) => (
-                    <div
-                      key={i}
-                      onClick={() => setSelectedSource(s)}
-                      className="bg-white p-3 rounded border border-gray-200 shadow-sm hover:shadow hover:border-purple-300 cursor-pointer transition-all flex justify-between items-center"
-                    >
-                      <div>
-                        <div className="font-bold text-gray-800 text-base">{s.sourceName}</div>
-                        <div className="text-xs text-gray-500 mt-1">Appears in {s.itemCount} items</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-500 font-bold uppercase mb-1">Retired Qty</div>
-                        <div className="font-black text-purple-700 text-lg">{s.totalRetiredQty}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+  const sourceColumns = columns.filter(c => c.key !== 'sr');
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-white flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-gray-200 hover:bg-gray-300 border-0 cursor-pointer text-gray-800 rounded font-bold text-sm transition-colors shadow-sm"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+  const filteredRows = useMemo(() => {
+    const baseRows = flatRows.filter(r => selectedSources.has(r._retiredSourceName));
+    
+    if (!deferredSearchQuery.trim()) return baseRows;
+    const activeQueries = [deferredSearchQuery.trim()].filter(Boolean);
 
-function ItemRow({ item }: { item: RetiredItemInfo; key?: any }) {
-  const [expanded, setExpanded] = useState(false);
-  
-  return (
-    <div className="bg-white p-3 rounded border border-gray-200 shadow-sm">
-      <div className="flex justify-between items-center">
-        <div className="font-bold text-gray-800 flex-1 truncate pr-4">{item.itemLabel}</div>
-        <div className="flex items-center gap-4">
-          <div className="text-center min-w-[60px]">
-            <div className="text-[10px] text-gray-400 font-bold uppercase">Sales</div>
-            <div className="font-bold text-blue-600">{item.totalSales}</div>
-          </div>
-          <div className="text-center min-w-[60px]">
-            <div className="text-[10px] text-gray-400 font-bold uppercase">Retired</div>
-            <div className="font-bold text-purple-700">{item.retiredQty}</div>
-          </div>
-        </div>
-      </div>
+    return baseRows.filter((row) => {
+      const searchCols = [
+        { name: "Retired Source", val: row._retiredSourceName.toLowerCase() },
+        { name: "Total Sales", val: String(row._totalSales).toLowerCase() },
+        ...sourceColumns.map((col: any) => {
+          if (col.type === "image" || col.type === "file") return null;
+          const val = getCellValue(row, col);
+          const strVal = Array.isArray(val) ? val.join(" ") : val !== null && val !== undefined ? String(val) : "";
+          const cleanVal = strVal.replace(/<[^>]*>/g, "").replace(/<br\s*\/?>/gi, " ").replace(/&nbsp;/gi, " ").toLowerCase();
+          return { name: col.name.toLowerCase(), val: cleanVal };
+        }).filter(Boolean) as { name: string; val: string }[]
+      ];
       
-      {item.perSaleColumn.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <button 
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs font-bold text-gray-500 bg-transparent border-0 cursor-pointer hover:text-gray-800 flex items-center gap-1 p-0"
-          >
-            {expanded ? "▼ Hide" : "▶ Show"} sale columns breakdown
-          </button>
-          
-          {expanded && (
-            <div className="mt-2 space-y-1 bg-gray-50 p-2 rounded">
-              {item.perSaleColumn.map((sc, i) => (
-                <div key={i} className="flex justify-between text-xs">
-                  <span className="text-gray-600">{sc.colName}</span>
-                  <span className="font-bold text-gray-800">{sc.qty}</span>
-                </div>
-              ))}
+      const globalBlob = searchCols.map((c) => c.val).join(" ");
+      
+      return activeQueries.some((query) => {
+        let targetBlob = globalBlob;
+        let searchString = query.toLowerCase();
+        const colonIndex = searchString.indexOf(":");
+        
+        if (colonIndex > 0) {
+          const prefix = searchString.substring(0, colonIndex).trim();
+          const suffix = searchString.substring(colonIndex + 1).trim();
+          const matchedCol = searchCols.find((c) => c.name.includes(prefix) || prefix.includes(c.name));
+          if (matchedCol) {
+            targetBlob = matchedCol.val;
+            searchString = suffix;
+          }
+        }
+        
+        const tokens = searchString.split(/\s+/).filter(Boolean);
+        return tokens.every((t) => {
+          const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          let bStart = "";
+          let bEnd = "";
+          if (/^[0-9]/.test(t)) {
+            bStart = "(?<![0-9])";
+            bEnd = "";
+          } else if (/^[a-zA-Z]/.test(t)) {
+            if (t.length <= 2) {
+              bStart = "(?<![a-zA-Z])";
+              bEnd = "(?![a-zA-Z]{2,})";
+            } else {
+              bStart = "";
+              bEnd = "";
+            }
+          }
+          return new RegExp(bStart + escaped + bEnd, "i").test(targetBlob);
+        });
+      });
+    });
+  }, [flatRows, sourceColumns, deferredSearchQuery, selectedSources]);
+
+  const handleExport = async () => {
+    if (filteredRows.length === 0) {
+      toast("No rows to export.");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Retired Sources');
+      
+      const exportCols = [
+        { name: "Retired Source", width: 20 },
+        { name: "Retired Qty", width: 15 },
+        { name: "Total Sales", width: 15 },
+        ...sourceColumns.map(c => ({
+          name: c.name,
+          width: c.type === 'image' ? 12 : 20
+        }))
+      ];
+      
+      worksheet.columns = exportCols.map(c => ({
+        header: c.name,
+        key: c.name,
+        width: c.width
+      }));
+      
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
+      
+      for (const row of filteredRows) {
+        const rowValues: any = {};
+        rowValues["Retired Source"] = row._retiredSourceName;
+        rowValues["Retired Qty"] = row._retiredQty;
+        rowValues["Total Sales"] = row._totalSales;
+        
+        for (const col of sourceColumns) {
+           const val = getCellValue(row, col);
+           if (col.type === 'image' || col.type === 'file') {
+              rowValues[col.name] = val ? '(File/Image)' : '';
+           } else {
+              rowValues[col.name] = val;
+           }
+        }
+        worksheet.addRow(rowValues);
+      }
+      
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), `${pageName || 'Inventory'}_Retired_Sources_${Date.now()}.xlsx`);
+      toast(`Exported ${filteredRows.length} rows successfully.`);
+    } catch (err) {
+      console.error(err);
+      toast("Export failed.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={`🗄️ Retired Sources Overview (${pageName})`}
+      width="95vw"
+      noScroll={true}
+    >
+      <div className="flex flex-col h-[85vh] p-4">
+        <div className="flex flex-col gap-2 mb-4 shrink-0 p-3 bg-gray-50 rounded-lg border border-gray-200">
+           <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-gray-700">
+                Retired Sources:
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedSources(new Set(overviewData.map(s => s.sourceName)))}
+                  className="px-2 py-1 text-[10px] font-bold bg-[#2b579a] text-white rounded hover:bg-[#1a3c6d] transition-colors"
+                >
+                  Select All
+                </button>
+                <button
+                  onClick={() => setSelectedSources(new Set())}
+                  className="px-2 py-1 text-[10px] font-bold bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors border border-gray-300"
+                >
+                  Select None
+                </button>
+              </div>
             </div>
-          )}
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+              {overviewData.map(s => (
+                 <label
+                   key={s.sourceName}
+                   className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600 hover:text-gray-900"
+                 >
+                   <input
+                     type="checkbox"
+                     className="accent-purple-600 w-4 h-4 cursor-pointer"
+                     checked={selectedSources.has(s.sourceName)}
+                     onChange={(e) => {
+                        const next = new Set(selectedSources);
+                        if (e.target.checked) next.add(s.sourceName);
+                        else next.delete(s.sourceName);
+                        setSelectedSources(next);
+                     }}
+                   />
+                   <span className="font-bold">{s.sourceName}</span>
+                   <span className="text-[10px] text-gray-500 bg-gray-200 px-1 rounded-sm">
+                     {s.itemCount} items, qty {s.totalRetiredQty}
+                   </span>
+                 </label>
+              ))}
+              {overviewData.length === 0 && (
+                 <span className="text-sm text-gray-500 italic">No retired sources found.</span>
+              )}
+            </div>
         </div>
-      )}
-    </div>
+
+        <div className="flex gap-4 mb-4 shrink-0 items-center justify-between">
+           <div className="relative flex-1">
+             <Search
+               className="absolute left-2 top-2.5 text-gray-400"
+               size={16}
+             />
+             <Input
+               className="pl-8"
+               placeholder="Filter rows (e.g. source:supplierA, name:itemB)..."
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+             />
+           </div>
+           <Button
+              variant="green"
+              onClick={handleExport}
+              disabled={isExporting || filteredRows.length === 0}
+              className="flex items-center gap-2"
+           >
+              <FileSpreadsheet size={16} /> {isExporting ? "Exporting..." : "Export to Excel"}
+           </Button>
+        </div>
+
+        <div className="flex-1 overflow-auto border rounded relative bg-white">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
+              <tr>
+                <th className="p-2 border text-left min-w-[120px] bg-purple-50 text-purple-800">
+                  <div className="flex items-center gap-1">📦 Retired Source</div>
+                </th>
+                <th className="p-2 border text-left min-w-[100px] bg-blue-50 text-blue-800">
+                  <div className="flex items-center gap-1">📈 Total Sales</div>
+                </th>
+                {sourceColumns.map((c, i) => (
+                  <th key={c.key} className="p-2 border text-left">
+                    <div className="flex items-center gap-1">
+                      {i + 1}. {c.name} {c.locked && "🔒"}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.map((row, i) => (
+                <tr key={`${row._originalRowId}-${row._retiredSourceName}-${i}`} className="hover:bg-gray-50">
+                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30">
+                    <div>{highlightText(row._retiredSourceName, deferredSearchQuery)}</div>
+                    <div className="text-[10px] text-gray-500 uppercase mt-0.5 tracking-wider">Qty: {row._retiredQty}</div>
+                  </td>
+                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-blue-700 bg-blue-50/30">
+                    {highlightText(String(row._totalSales), deferredSearchQuery)}
+                  </td>
+                  
+                  {sourceColumns.map((c: any) => {
+                    const rawVal = getCellValue(row, c);
+                    return (
+                      <td
+                        key={c.key}
+                        className="p-2 border whitespace-pre-wrap break-words min-w-[150px]"
+                      >
+                        {(c.type === "image" || c.type === "file") &&
+                        rawVal &&
+                        getImageUrl(rawVal) ? (
+                          <img
+                            src={getImageUrl(rawVal)}
+                            className="h-10 w-10 object-contain mx-auto rounded"
+                            alt="img"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
+                        ) : (
+                          highlightText(
+                            String(
+                              rawVal === null || rawVal === undefined
+                                ? ""
+                                : rawVal,
+                            ),
+                            deferredSearchQuery,
+                          )
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {filteredRows.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={sourceColumns.length + 2}
+                    className="p-8 text-center text-gray-500 font-medium"
+                  >
+                    No retired sources match your criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Modal>
   );
 }
