@@ -26,11 +26,20 @@ export function RetiredSourcesOverviewModal({
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
+  const [showSourceDropdown, setShowSourceDropdown] = useState(false);
+  const [sourceSearchQuery, setSourceSearchQuery] = useState("");
+  const [showSaleColumns, setShowSaleColumns] = useState(true);
 
   const overviewData = useMemo(() => {
     if (!isOpen) return [];
     return buildRetiredOverview(rows, columns);
   }, [isOpen, rows, columns]);
+
+  const filteredOverviewData = useMemo(() => {
+    if (!sourceSearchQuery.trim()) return overviewData;
+    const lowerQuery = sourceSearchQuery.toLowerCase();
+    return overviewData.filter(s => s.sourceName.toLowerCase().includes(lowerQuery));
+  }, [overviewData, sourceSearchQuery]);
 
   const flatRows = useMemo(() => {
     if (!isOpen) return [];
@@ -155,15 +164,21 @@ export function RetiredSourcesOverviewModal({
     );
   };
 
-  const sourceColumns = columns.filter(c => c.key !== 'sr');
+  const sourceColumns = useMemo(() => {
+    let cols = columns.filter(c => c.key !== 'sr');
+    if (!showSaleColumns) {
+      cols = cols.filter(c => c.type !== 'sale_tracker');
+    }
+    return cols;
+  }, [columns, showSaleColumns]);
 
   const filteredRows = useMemo(() => {
     const baseRows = flatRows.filter(r => selectedSources.has(r._retiredSourceName));
     
-    if (!deferredSearchQuery.trim()) return baseRows;
-    const activeQueries = [deferredSearchQuery.trim()].filter(Boolean);
-
-    return baseRows.filter((row) => {
+    let result = baseRows;
+    if (deferredSearchQuery.trim()) {
+      const activeQueries = [deferredSearchQuery.trim()].filter(Boolean);
+      result = baseRows.filter((row) => {
       const searchCols = [
         { name: "Retired Source", val: row._retiredSourceName.toLowerCase() },
         { name: "Total Sales", val: String(row._totalSales).toLowerCase() },
@@ -213,7 +228,9 @@ export function RetiredSourcesOverviewModal({
           return new RegExp(bStart + escaped + bEnd, "i").test(targetBlob);
         });
       });
-    });
+      }); // missing filter closing
+    }
+    return [...result].sort((a, b) => b._totalSales - a._totalSales);
   }, [flatRows, sourceColumns, deferredSearchQuery, selectedSources]);
 
   const handleExport = async () => {
@@ -282,64 +299,90 @@ export function RetiredSourcesOverviewModal({
       noScroll={true}
     >
       <div className="flex flex-col h-[85vh] p-4">
-        <div className="flex flex-col gap-2 mb-4 shrink-0 p-3 bg-gray-50 rounded-lg border border-gray-200">
-           <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-gray-700">
-                Retired Sources:
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSelectedSources(new Set(overviewData.map(s => s.sourceName)))}
-                  className="px-2 py-1 text-[10px] font-bold bg-[#2b579a] text-white rounded hover:bg-[#1a3c6d] transition-colors"
-                >
-                  Select All
-                </button>
-                <button
-                  onClick={() => setSelectedSources(new Set())}
-                  className="px-2 py-1 text-[10px] font-bold bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors border border-gray-300"
-                >
-                  Select None
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
-              {overviewData.map(s => (
-                 <label
-                   key={s.sourceName}
-                   className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-600 hover:text-gray-900"
-                 >
-                   <input
-                     type="checkbox"
-                     className="accent-purple-600 w-4 h-4 cursor-pointer"
-                     checked={selectedSources.has(s.sourceName)}
-                     onChange={(e) => {
-                        const next = new Set(selectedSources);
-                        if (e.target.checked) next.add(s.sourceName);
-                        else next.delete(s.sourceName);
-                        setSelectedSources(next);
-                     }}
-                   />
-                   <span className="font-bold">{s.sourceName}</span>
-                   <span className="text-[10px] text-gray-500 bg-gray-200 px-1 rounded-sm">
-                     {s.itemCount} items, qty {s.totalRetiredQty}
-                   </span>
-                 </label>
-              ))}
-              {overviewData.length === 0 && (
-                 <span className="text-sm text-gray-500 italic">No retired sources found.</span>
-              )}
-            </div>
-        </div>
-
         <div className="flex gap-4 mb-4 shrink-0 items-center justify-between">
-           <div className="relative flex-1">
+           <div className="flex gap-4 items-center">
+             <div className="relative">
+               <Button
+                 variant="outline"
+                 onClick={() => setShowSourceDropdown(!showSourceDropdown)}
+                 className="flex items-center gap-2 font-bold"
+               >
+                 📋 Select Sources ({selectedSources.size} selected)
+               </Button>
+               {showSourceDropdown && (
+                 <div className="absolute top-full left-0 mt-2 w-[400px] bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3 flex flex-col gap-3 max-h-[400px]">
+                   <div className="relative shrink-0">
+                     <Search className="absolute left-2 top-2.5 text-gray-400" size={16} />
+                     <Input
+                       className="pl-8"
+                       placeholder="Search sources..."
+                       value={sourceSearchQuery}
+                       onChange={(e) => setSourceSearchQuery(e.target.value)}
+                     />
+                   </div>
+                   <div className="flex gap-2 shrink-0">
+                     <button
+                       onClick={() => setSelectedSources(new Set(overviewData.map(s => s.sourceName)))}
+                       className="px-2 py-1 text-[10px] font-bold bg-[#2b579a] text-white rounded hover:bg-[#1a3c6d] transition-colors"
+                     >
+                       Select All
+                     </button>
+                     <button
+                       onClick={() => setSelectedSources(new Set())}
+                       className="px-2 py-1 text-[10px] font-bold bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors border border-gray-300"
+                     >
+                       Select None
+                     </button>
+                   </div>
+                   <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-2">
+                      {filteredOverviewData.map(s => (
+                         <label
+                           key={s.sourceName}
+                           className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 hover:bg-gray-50 p-1.5 rounded transition-colors"
+                         >
+                           <input
+                             type="checkbox"
+                             className="accent-purple-600 w-4 h-4 cursor-pointer shrink-0"
+                             checked={selectedSources.has(s.sourceName)}
+                             onChange={(e) => {
+                                const next = new Set(selectedSources);
+                                if (e.target.checked) next.add(s.sourceName);
+                                else next.delete(s.sourceName);
+                                setSelectedSources(next);
+                             }}
+                           />
+                           <span className="font-bold flex-1 truncate">{s.sourceName}</span>
+                           <span className="text-[10px] text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full shrink-0">
+                             {s.itemCount} items, qty {s.totalRetiredQty}
+                           </span>
+                         </label>
+                      ))}
+                      {filteredOverviewData.length === 0 && (
+                         <span className="text-sm text-gray-500 italic p-2">No matching sources found.</span>
+                      )}
+                   </div>
+                 </div>
+               )}
+             </div>
+             <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-gray-700 select-none bg-gray-100 px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-200 transition-colors">
+                <input 
+                  type="checkbox" 
+                  className="accent-blue-600 w-4 h-4 cursor-pointer"
+                  checked={showSaleColumns} 
+                  onChange={e => setShowSaleColumns(e.target.checked)} 
+                />
+                Show Sale Columns
+             </label>
+           </div>
+           
+           <div className="relative flex-1 max-w-[400px]">
              <Search
                className="absolute left-2 top-2.5 text-gray-400"
                size={16}
              />
              <Input
                className="pl-8"
-               placeholder="Filter rows (e.g. source:supplierA, name:itemB)..."
+               placeholder="Filter rows (e.g. source:A)..."
                value={searchQuery}
                onChange={(e) => setSearchQuery(e.target.value)}
              />
@@ -348,12 +391,11 @@ export function RetiredSourcesOverviewModal({
               variant="green"
               onClick={handleExport}
               disabled={isExporting || filteredRows.length === 0}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 shrink-0"
            >
               <FileSpreadsheet size={16} /> {isExporting ? "Exporting..." : "Export to Excel"}
            </Button>
         </div>
-
         <div className="flex-1 overflow-auto border rounded relative bg-white">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
