@@ -457,7 +457,7 @@ export const TableView = ({
                               >
                                 {!isSecondary && config.rowReorderEnabled && (
                                   <td
-                                    className={`text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:!z-[18] data-[hovered-exact=true]:shadow-inner ${hasAnyExplicitPinned ? (!isSecondary && selectedRowIds.has(row.id) ? 'bg-[#e8f0fe]' : 'bg-white') : ''}`}
+                                    className={`text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:shadow-[inset_0_0_0_3px_#2b579a,inset_0_2px_4px_0_rgba(0,0,0,0.05)] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 ${hasAnyExplicitPinned ? (!isSecondary && selectedRowIds.has(row.id) ? 'bg-[#e8f0fe]' : 'bg-white') : ''}`}
                                     style={{
                                       width: "40px",
                                       minWidth: "40px",
@@ -508,7 +508,7 @@ export const TableView = ({
                                   const pinnedShadowClass = isLastPinned ? 'shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] [clip-path:inset(0_-15px_0_0)] border-r-gray-300' : '';
 
                                   const hoverClass =
-                                    `data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:!z-[18] data-[hovered-exact=true]:shadow-inner ${pinnedBgClass} ${pinnedShadowClass}`;
+                                    `data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:shadow-[inset_0_0_0_3px_#2b579a,inset_0_2px_4px_0_rgba(0,0,0,0.05)] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 ${pinnedBgClass} ${pinnedShadowClass}`;
 
                                   const colTokens = isActiveRow
                                     ? colTokensMap[col.key] || []
