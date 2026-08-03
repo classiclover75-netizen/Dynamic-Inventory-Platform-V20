@@ -27,6 +27,20 @@ export const TableView = ({
   handleTableMouseOver, handleTableMouseOut,
   getImageUrl, toggleModal,
 }: any) => {
+  const [containerWidth, setContainerWidth] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const parentRef = isSecondary ? secParentRef : primParentRef;
+    if (!parentRef?.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(parentRef.current);
+    setContainerWidth(parentRef.current.clientWidth);
+    return () => observer.disconnect();
+  }, [isSecondary, secParentRef, primParentRef]);
+
   const originalRowIndexMap = React.useMemo(() => {
     const map = new Map<string, number>();
     if (originalRows && Array.isArray(originalRows)) {
@@ -180,6 +194,7 @@ export const TableView = ({
 
     const pinnedCols = visibleColumns.filter((c: any) => c.pinned);
     const lastPinnedColKey = pinnedCols.length > 0 ? pinnedCols[pinnedCols.length - 1].key : null;
+    const spacerWidth = hasAnyExplicitPinned ? Math.max(50, (containerWidth || 0) - currentLeftOffset) : 50;
     if (!config || !config.columns) {
       return (
         <div className="flex flex-col items-center justify-center p-20 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 m-4">
@@ -273,7 +288,7 @@ export const TableView = ({
           <table
             className="border-separate border-spacing-0 table-fixed w-max max-w-none text-[14px] font-normal"
             style={{
-              width: `${currentTable.getTotalSize() + (!isSecondary && config.rowReorderEnabled ? 40 : 0) + 50}px`,
+              width: `${currentTable.getTotalSize() + (!isSecondary && config.rowReorderEnabled ? 40 : 0) + spacerWidth}px`,
             }}
             onMouseOver={handleTableMouseOver}
             onMouseOut={handleTableMouseOut}
@@ -391,7 +406,7 @@ export const TableView = ({
                 })}
                 <th
                   className="border-none bg-transparent pointer-events-none"
-                  style={{ width: "50px", minWidth: "50px", maxWidth: "50px" }}
+                  style={{ width: `${spacerWidth}px`, minWidth: `${spacerWidth}px`, maxWidth: `${spacerWidth}px` }}
                 ></th>
               </tr>
             </thead>
@@ -1148,7 +1163,7 @@ export const TableView = ({
                                     </td>
                                   );
                                 })}
-                                <td className="border-none bg-transparent pointer-events-none" style={{ width: "50px", minWidth: "50px", maxWidth: "50px" }}></td>
+                                <td className="border-none bg-transparent pointer-events-none" style={{ width: `${spacerWidth}px`, minWidth: `${spacerWidth}px`, maxWidth: `${spacerWidth}px` }}></td>
                               </tr>
                         );
                       })}
