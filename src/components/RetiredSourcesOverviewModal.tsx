@@ -471,7 +471,7 @@ export function RetiredSourcesOverviewModal({
               <FileSpreadsheet size={16} /> {isExporting ? "Exporting..." : "Export to Excel"}
            </Button>
         </div>
-        <div className="flex-1 overflow-auto border rounded relative bg-white pl-2">
+        <div className="flex-1 overflow-auto border rounded relative bg-white pr-4">
           <table className="w-max table-fixed text-sm border-collapse" style={{ width: totalWidth + 'px' }}>
             <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
               <tr>
