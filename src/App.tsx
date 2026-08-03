@@ -443,6 +443,7 @@ function AppContent() {
   const [sumSelectedSources, setSumSelectedSources] = useState<string[]>([]);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isRetiredSourcesOverviewOpen, setRetiredSourcesOverviewOpen] = useState(false);
+  const [isRetiredOverviewStandalone, setIsRetiredOverviewStandalone] = useState(false);
   const [isArchiveDeleteModalOpen, setIsArchiveDeleteModalOpen] =
     useState(false);
   const [archiveDeleteSearchQuery, setArchiveDeleteSearchQuery] = useState("");
@@ -2144,6 +2145,10 @@ function AppContent() {
             savedSecScroll={savedSecScroll}
             handleClosePopup={handleClosePopup}
             handleDragEnd={handleDragEnd}
+            onOpenRetiredOverview={() => {
+              setIsRetiredOverviewStandalone(true);
+              setRetiredSourcesOverviewOpen(true);
+            }}
             handleSaveColumnWidth={handleSaveColumnWidth}
             handleSaveInlineEdit={handleSaveInlineEdit}
             handleTableMouseOver={handleTableMouseOver}
@@ -2499,7 +2504,11 @@ function AppContent() {
         isOpen={isRetiredSourcesOverviewOpen}
         onClose={() => {
           setRetiredSourcesOverviewOpen(false);
-          setIsArchiveModalOpen(true);
+          if (!isRetiredOverviewStandalone) {
+            setIsArchiveModalOpen(true);
+          } else {
+            setIsRetiredOverviewStandalone(false);
+          }
         }}
         rows={activeRows}
         columns={activeConfig?.columns || []}

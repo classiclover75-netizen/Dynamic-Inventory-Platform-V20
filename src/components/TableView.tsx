@@ -22,6 +22,7 @@ export const TableView = ({
   primParentRef, secParentRef,
   savedPrimScroll, savedSecScroll,
   handleClosePopup, handleDragEnd, handleSaveColumnWidth, handleSaveInlineEdit,
+  onOpenRetiredOverview,
   handleTableMouseOver, handleTableMouseOut,
   getImageUrl, toggleModal,
 }: any) => {
@@ -743,7 +744,8 @@ export const TableView = ({
                                         (c) => c.type === "sale_tracker",
                                       );
 
-                                      const remainingSources = totalSources.map(
+                                      const { active: activeTotalSources } = splitActiveRetired(totalSources);
+                                      const remainingSources = activeTotalSources.map(
                                         (ts: any) => {
                                           let totalSaleForSource = 0;
                                           saleCols.forEach((sc) => {
@@ -781,7 +783,7 @@ export const TableView = ({
                                                   className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.remaining <= (config.minStockAlert ?? 0) ? "bg-[#FF0000] text-white border-[#cc0000] shadow-md" : s.color}`}
                                                 >
                                                   <span className={s.remaining <= (config.minStockAlert ?? 0) ? "text-white font-extrabold opacity-100" : "opacity-70"}>
-                                                    <span className="mr-1">{formatSourceNumber(idx)}</span>{s.source}:
+                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
                                                   </span>{" "}
                                                   <span>{s.remaining}</span>
                                                 </div>
@@ -842,27 +844,15 @@ export const TableView = ({
                                               ),
                                             )}
                                             {hiddenRetiredCount > 0 && (
-                                              <div className="group/ret mt-0.5">
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase cursor-pointer hover:text-gray-600 text-center py-0.5 border border-dashed border-gray-200 rounded">
-                                                  Show hidden retired ({hiddenRetiredCount})
-                                                </div>
-                                                <div className="hidden group-hover/ret:flex flex-col gap-1 mt-1">
-                                                  {retired.filter((r: any) => !autoRevealedRetired.includes(r)).map(
-                                                    (s: any, idx: number) => (
-                                                      <div
-                                                        key={`ret-hidden-${idx}`}
-                                                        className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 opacity-50 bg-gray-50 border-gray-200`}
-                                                      >
-                                                        <span className="opacity-70 text-gray-500">
-                                                          <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
-                                                        </span>{" "}
-                                                        <span className="text-gray-500">{s.qty}</span>
-                                                        <span className="ml-auto text-[9px] uppercase tracking-wider bg-gray-200 text-gray-600 px-1 rounded">Retired</span>
-                                                      </div>
-                                                    ),
-                                                  )}
-                                                </div>
-                                              </div>
+                                              <button 
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  if (onOpenRetiredOverview) onOpenRetiredOverview();
+                                                }}
+                                                className="mt-0.5 text-[10px] text-gray-400 font-bold uppercase cursor-pointer hover:text-gray-600 hover:bg-gray-50 text-center py-0.5 border border-dashed border-gray-300 rounded w-full transition-colors"
+                                              >
+                                                Show hidden retired ({hiddenRetiredCount})
+                                              </button>
                                             )}
                                             {active.length >= 2 && (
                                               <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
