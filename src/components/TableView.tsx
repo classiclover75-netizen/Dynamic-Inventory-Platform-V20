@@ -41,6 +41,8 @@ export const TableView = ({
     return () => observer.disconnect();
   }, [isSecondary, secParentRef, primParentRef]);
 
+  const wheelLockRef = React.useRef(false);
+  
   const originalRowIndexMap = React.useMemo(() => {
     const map = new Map<string, number>();
     if (originalRows && Array.isArray(originalRows)) {
@@ -250,6 +252,63 @@ export const TableView = ({
           } : {})
         }}
         tabIndex={0}
+        onWheel={(e) => {
+          if (!hasAnyExplicitPinned) return;
+          const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
+          if (!isHorizontal) return;
+          
+          e.preventDefault();
+          
+          const container = currentParentRef?.current;
+          if (!container) return;
+          if (wheelLockRef.current) return;
+          
+          const currentScrollLeft = container.scrollLeft;
+          const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+          
+          const snapPositions = [0];
+          let accWidth = 0;
+          if (!isSecondary && config?.rowReorderEnabled) accWidth += 40;
+          
+          visibleColumns.forEach((col: any) => {
+            const header = flatHeadersMap.get(col.key) || currentTable.getFlatHeaders().find((h: any) => h.id === col.key);
+            const activeWidth = header ? header.getSize() : col.width || (col.key === "sr" ? state.globalRowNoWidth || 100 : col.type === "image" ? 137 : 150);
+            
+            if (!col.pinned && col.key !== "sr") {
+              const snapPos = accWidth - currentLeftOffset;
+              if (snapPos > 0 && snapPos < maxScrollLeft) {
+                snapPositions.push(snapPos);
+              }
+            }
+            accWidth += activeWidth;
+          });
+          snapPositions.push(maxScrollLeft);
+          
+          const uniqueSnaps = Array.from(new Set(snapPositions)).sort((a, b) => a - b);
+          
+          let closestIdx = 0;
+          let minDiff = Infinity;
+          for (let i = 0; i < uniqueSnaps.length; i++) {
+            const diff = Math.abs(uniqueSnaps[i] - currentScrollLeft);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestIdx = i;
+            }
+          }
+          
+          const direction = (e.deltaX || e.deltaY) > 0 ? 1 : -1;
+          let targetIdx = closestIdx + direction;
+          targetIdx = Math.max(0, Math.min(uniqueSnaps.length - 1, targetIdx));
+          
+          const targetScroll = uniqueSnaps[targetIdx];
+          
+          wheelLockRef.current = true;
+          container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+          
+          setTimeout(() => {
+            wheelLockRef.current = false;
+          }, 400);
+        }}
         onKeyDown={(e) => {
           if (
             e.target instanceof HTMLInputElement ||
