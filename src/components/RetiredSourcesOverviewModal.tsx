@@ -37,6 +37,19 @@ export function RetiredSourcesOverviewModal({
   const [colWidths, setColWidths] = useState<Record<string, number>>(initialColWidths);
   const colWidthsRef = React.useRef(colWidths);
 
+  const sourceDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!showSourceDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (sourceDropdownRef.current && !sourceDropdownRef.current.contains(e.target as Node)) {
+        setShowSourceDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSourceDropdown]);
+
   React.useEffect(() => {
     colWidthsRef.current = colWidths;
   }, [colWidths]);
@@ -355,7 +368,7 @@ export function RetiredSourcesOverviewModal({
       <div className="flex flex-col h-[85vh] p-4">
         <div className="flex gap-4 mb-4 shrink-0 items-center justify-between">
            <div className="flex gap-4 items-center">
-             <div className="relative">
+             <div className="relative" ref={sourceDropdownRef}>
                <Button
                  variant="outline"
                  onClick={() => setShowSourceDropdown(!showSourceDropdown)}
