@@ -22,6 +22,7 @@ export const TableView = ({
   primParentRef, secParentRef,
   savedPrimScroll, savedSecScroll,
   handleClosePopup, handleDragEnd, handleSaveColumnWidth, handleSaveInlineEdit,
+  onTogglePinColumn,
   onOpenRetiredOverview,
   handleTableMouseOver, handleTableMouseOut,
   getImageUrl, toggleModal,
@@ -352,6 +353,18 @@ export const TableView = ({
                               <Lock size={12} className="text-gray-500" />
                             )}
                           </div>
+                        )}
+                        {col.key !== "sr" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onTogglePinColumn) onTogglePinColumn(col.key);
+                            }}
+                            className={`p-0 m-0 ml-1 bg-transparent border-0 cursor-pointer transition-opacity ${col.pinned ? 'opacity-100 hover:opacity-80' : 'opacity-40 hover:opacity-100 grayscale-[0.5]'}`}
+                            title={col.pinned ? "Unpin column (unfreeze)" : "Pin column (freeze)"}
+                          >
+                            📌
+                          </button>
                         )}
                       </div>
 

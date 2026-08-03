@@ -122,6 +122,12 @@ export const ActivePageSettingsModal = React.memo(({
     saveConfig({ columns: cols }, false);
   };
 
+  const handleTogglePin = (colKey: string) => {
+    const cols = localColumns.map(c => c.key === colKey ? { ...c, pinned: !c.pinned } : c);
+    setLocalColumns(cols);
+    saveConfig({ columns: cols }, false);
+  };
+
   const saveConfig = (updatedProps: Partial<PageConfig>, closeModal?: boolean) => {
     if (pageConfig) {
       onSave({ 
@@ -570,6 +576,15 @@ export const ActivePageSettingsModal = React.memo(({
                         <Sliders size={16} />
                       </button>
                     )}
+                    {c.key !== "sr" && (
+                      <button 
+                        className={`border-0 bg-transparent cursor-pointer p-1 flex items-center justify-center transition-opacity ${c.pinned ? 'opacity-100 hover:opacity-80' : 'opacity-40 hover:opacity-100 grayscale-[0.5]'}`}
+                        onClick={() => handleTogglePin(c.key)}
+                        title={c.pinned ? "Unpin column (unfreeze)" : "Pin column (freeze)"}
+                      >
+                        📌
+                      </button>
+                    )}
                     {!c.locked && (
                       <div className="flex items-center gap-1">
                         {pendingDeleteSaleCol?.key === c.key ? (
@@ -738,6 +753,15 @@ export const ActivePageSettingsModal = React.memo(({
                                 title="Sort Settings"
                               >
                                 <Sliders size={16} />
+                              </button>
+                            )}
+                            {c.key !== "sr" && (
+                              <button 
+                                className={`border-0 bg-transparent cursor-pointer p-1 flex items-center justify-center transition-opacity ${c.pinned ? 'opacity-100 hover:opacity-80' : 'opacity-40 hover:opacity-100 grayscale-[0.5]'}`}
+                                onClick={() => handleTogglePin(c.key)}
+                                title={c.pinned ? "Unpin column (unfreeze)" : "Pin column (freeze)"}
+                              >
+                                📌
                               </button>
                             )}
                             {!c.locked && (

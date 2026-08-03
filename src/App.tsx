@@ -1026,6 +1026,18 @@ function AppContent() {
     toggleModal("editColumn", true);
   };
 
+  const handleToggleColumnPin = async (colKey: string) => {
+    const currentCols = state.pageConfigs[state.activePage]?.columns || [];
+    const newCols = currentCols.map((c) =>
+      c.key === colKey ? { ...c, pinned: !c.pinned } : c,
+    );
+    const updatedConfig = {
+      ...state.pageConfigs[state.activePage],
+      columns: newCols,
+    };
+    await handleSaveActivePageSettings(updatedConfig, false);
+  };
+
   const handleSaveEditedColumn = async (updatedCol: Column) => {
     const currentCols = state.pageConfigs[state.activePage]?.columns || [];
     const newCols = currentCols.map((c) =>
@@ -2145,6 +2157,7 @@ function AppContent() {
             savedSecScroll={savedSecScroll}
             handleClosePopup={handleClosePopup}
             handleDragEnd={handleDragEnd}
+            onTogglePinColumn={handleToggleColumnPin}
             onOpenRetiredOverview={() => {
               setIsRetiredOverviewStandalone(true);
               setRetiredSourcesOverviewOpen(true);

@@ -28,7 +28,6 @@ export const EditColumnModal = React.memo(({
   const [type, setType] = useState<ColumnType>('text');
   const [width, setWidth] = useState<number>(150);
   const [sortEnabled, setSortEnabled] = useState<boolean>(false);
-  const [pinned, setPinned] = useState<boolean>(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [sortPriority, setSortPriority] = useState<number>(1);
   const [locked, setLocked] = useState<boolean>(false);
@@ -44,7 +43,6 @@ export const EditColumnModal = React.memo(({
       setType(column.type);
       setWidth(column.width || 150);
       setSortEnabled(column.sortEnabled || false);
-      setPinned(column.pinned || false);
       setSortDirection(column.sortDirection || 'asc');
       setSortPriority(column.sortPriority || 1);
       setLocked(column.locked || false);
@@ -106,7 +104,6 @@ export const EditColumnModal = React.memo(({
       sortDirection: sortEnabled ? sortDirection : undefined,
       sortPriority: sortEnabled ? sortPriority : undefined,
       locked,
-      pinned,
       copyPerItem: type === 'text_with_copy_button',
       multiInput: type === 'text_with_copy_button',
       options: (type === 'dropdown' || type === 'multi_select') ? cleanedOptions : undefined,
@@ -240,19 +237,7 @@ export const EditColumnModal = React.memo(({
 
       {column?.type !== 'sale_tracker' && (
         <>
-          <div className="mb-3 border-t border-gray-100 pt-3">
-            <div className="flex items-center gap-2 mb-2">
-              <input 
-                type="checkbox" 
-                id="pinned"
-                checked={pinned}
-                onChange={(e) => setPinned(e.target.checked)}
-                className="w-4 h-4 accent-[#2b579a]"
-              />
-              <label htmlFor="pinned" className="text-xs font-bold text-gray-600 cursor-pointer">📌 Pin column (freeze)</label>
-            </div>
-          </div>
-          
+
           <div className="mb-3 border-t border-gray-100 pt-3">
             <div className="flex items-center gap-2 mb-2">
               <input 
