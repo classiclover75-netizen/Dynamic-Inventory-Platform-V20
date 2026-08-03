@@ -1,4 +1,5 @@
 import { isRetired, splitActiveRetired, sumActive } from '../lib/sourceArchiveUtils';
+import { getRowRetiredSourceNames } from '../lib/rowRetiredFilter';
 import React from "react";
 import { Lock, ArrowUp, ArrowDown } from "lucide-react";
 import { ColumnResizeHandle } from "./ColumnResizeHandle";
@@ -921,12 +922,12 @@ export const TableView = ({
                                               (s: any, idx: number) => (
                                                 <div
                                                   key={`ret-auto-${idx}`}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 opacity-60 bg-gray-50 border-gray-200`}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300`}
                                                 >
-                                                  <span className="opacity-70 text-gray-500">
+                                                  <span className="opacity-70 text-gray-700">
                                                     <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
                                                   </span>{" "}
-                                                  <span className="text-gray-500">{s.qty}</span>
+                                                  <span className="text-gray-700">{s.qty}</span>
                                                   <span className="ml-auto text-[9px] uppercase tracking-wider bg-gray-200 text-gray-600 px-1 rounded">Retired</span>
                                                 </div>
                                               ),
@@ -935,7 +936,7 @@ export const TableView = ({
                                               <button 
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  if (onOpenRetiredOverview) onOpenRetiredOverview();
+                                                  if (onOpenRetiredOverview) onOpenRetiredOverview(getRowRetiredSourceNames(row));
                                                 }}
                                                 className="mt-0.5 text-[10px] text-gray-400 font-bold uppercase cursor-pointer hover:text-gray-600 hover:bg-gray-50 text-center py-0.5 border border-dashed border-gray-300 rounded w-full transition-colors"
                                               >

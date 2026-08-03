@@ -16,7 +16,8 @@ export function RetiredSourcesOverviewModal({
   columns,
   pageName,
   initialColWidths = {},
-  onSaveColWidths
+  onSaveColWidths,
+  initialSelectedSources = null
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -25,6 +26,7 @@ export function RetiredSourcesOverviewModal({
   pageName: string;
   initialColWidths?: Record<string, number>;
   onSaveColWidths?: (w: Record<string, number>) => void;
+  initialSelectedSources?: string[] | null;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -115,10 +117,16 @@ export function RetiredSourcesOverviewModal({
 
   React.useEffect(() => {
     if (isOpen) {
-      setSelectedSources(new Set(overviewData.map(s => s.sourceName)));
+      const allNames = overviewData.map(s => s.sourceName);
+      if (initialSelectedSources && initialSelectedSources.length > 0) {
+        const initialSet = new Set(initialSelectedSources.filter(s => allNames.includes(s)));
+        setSelectedSources(initialSet.size > 0 ? initialSet : new Set(allNames));
+      } else {
+        setSelectedSources(new Set(allNames));
+      }
       setSearchQuery("");
     }
-  }, [isOpen, overviewData]);
+  }, [isOpen, overviewData, initialSelectedSources]);
 
   const getImageUrl = (val: any) => {
     if (!val) return "";
@@ -427,7 +435,7 @@ export function RetiredSourcesOverviewModal({
                                 setSelectedSources(next);
                              }}
                            />
-                           <span className="font-bold flex-1 truncate">{s.sourceName}</span>
+                           <span className="font-bold flex-1">{s.sourceName}</span>
                            <span className="text-[10px] text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full shrink-0">
                              {s.itemCount} items, qty {s.totalRetiredQty}
                            </span>

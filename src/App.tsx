@@ -443,6 +443,7 @@ function AppContent() {
   const [sumSelectedSources, setSumSelectedSources] = useState<string[]>([]);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isRetiredSourcesOverviewOpen, setRetiredSourcesOverviewOpen] = useState(false);
+  const [retiredOverviewFilterSources, setRetiredOverviewFilterSources] = useState<string[] | null>(null);
   const [isRetiredOverviewStandalone, setIsRetiredOverviewStandalone] = useState(false);
   const [isArchiveDeleteModalOpen, setIsArchiveDeleteModalOpen] =
     useState(false);
@@ -2158,7 +2159,8 @@ function AppContent() {
             handleClosePopup={handleClosePopup}
             handleDragEnd={handleDragEnd}
             onTogglePinColumn={handleToggleColumnPin}
-            onOpenRetiredOverview={() => {
+            onOpenRetiredOverview={(sources?: string[]) => {
+              setRetiredOverviewFilterSources(sources || null);
               setIsRetiredOverviewStandalone(true);
               setRetiredSourcesOverviewOpen(true);
             }}
@@ -2515,6 +2517,7 @@ function AppContent() {
       <RetiredSourcesOverviewModal
         pageName={state.activePage}
         isOpen={isRetiredSourcesOverviewOpen}
+        initialSelectedSources={retiredOverviewFilterSources}
         onClose={() => {
           setRetiredSourcesOverviewOpen(false);
           if (!isRetiredOverviewStandalone) {
@@ -3325,6 +3328,7 @@ function AppContent() {
                   <button
                     onClick={() => {
                       setIsArchiveModalOpen(false);
+                      setRetiredOverviewFilterSources(null);
                       setRetiredSourcesOverviewOpen(true);
                     }}
                     className="px-3 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded shadow-sm text-xs font-bold flex items-center gap-1 transition-colors"
