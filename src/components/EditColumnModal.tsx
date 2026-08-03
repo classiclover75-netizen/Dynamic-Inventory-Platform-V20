@@ -106,6 +106,7 @@ export const EditColumnModal = React.memo(({
       sortDirection: sortEnabled ? sortDirection : undefined,
       sortPriority: sortEnabled ? sortPriority : undefined,
       locked,
+      pinned,
       copyPerItem: type === 'text_with_copy_button',
       multiInput: type === 'text_with_copy_button',
       options: (type === 'dropdown' || type === 'multi_select') ? cleanedOptions : undefined,
