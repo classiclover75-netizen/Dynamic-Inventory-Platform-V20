@@ -143,12 +143,14 @@ export const TableView = ({
 
     const flatHeadersMap = new Map();
     try {
-      currentTable.getFlatHeaders().forEach(h => {
+      currentTable.getFlatHeaders().forEach((h: any) => {
         flatHeadersMap.set(h.id, h);
       });
     } catch (e) {
       // Safety verification check: ignore if failing to precompute
     }
+    
+
 
     const activePage = isSecondary
       ? state.pageConfigs[state.activePage]?.secondarySearchPage
@@ -241,6 +243,79 @@ export const TableView = ({
       colTokensMap[col.key] = tokens;
     });
 
+    const latestWheelData = React.useRef({
+      config, state, currentTable, visibleColumns, flatHeadersMap, currentLeftOffset, hasAnyExplicitPinned, isSecondary
+    });
+    React.useEffect(() => {
+      latestWheelData.current = { config, state, currentTable, visibleColumns, flatHeadersMap, currentLeftOffset, hasAnyExplicitPinned, isSecondary };
+    });
+  
+    React.useEffect(() => {
+      const parentRef = isSecondary ? secParentRef : primParentRef;
+      const container = parentRef?.current;
+      if (!container) return;
+  
+      const handleWheel = (e: WheelEvent) => {
+        const data = latestWheelData.current;
+        if (!data.hasAnyExplicitPinned) return;
+        const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
+        if (!isHorizontal) return;
+        
+        e.preventDefault();
+        
+        if (wheelLockRef.current) return;
+        
+        const currentScrollLeft = container.scrollLeft;
+        const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+        
+        const snapPositions = [0];
+        let accWidth = 0;
+        if (!data.isSecondary && data.config?.rowReorderEnabled) accWidth += 40;
+        
+        data.visibleColumns.forEach((col: any) => {
+          const header = data.flatHeadersMap.get(col.key) || data.currentTable.getFlatHeaders().find((h: any) => h.id === col.key);
+          const activeWidth = header ? header.getSize() : col.width || (col.key === "sr" ? data.state.globalRowNoWidth || 100 : col.type === "image" ? 137 : 150);
+          
+          if (!col.pinned && col.key !== "sr") {
+            const snapPos = accWidth - data.currentLeftOffset;
+            if (snapPos > 0 && snapPos < maxScrollLeft) {
+              snapPositions.push(snapPos);
+            }
+          }
+          accWidth += activeWidth;
+        });
+        snapPositions.push(maxScrollLeft);
+        
+        const uniqueSnaps = Array.from(new Set(snapPositions)).sort((a, b) => a - b);
+        
+        let closestIdx = 0;
+        let minDiff = Infinity;
+        for (let i = 0; i < uniqueSnaps.length; i++) {
+          const diff = Math.abs(uniqueSnaps[i] - currentScrollLeft);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIdx = i;
+          }
+        }
+        
+        const direction = (e.deltaX || e.deltaY) > 0 ? 1 : -1;
+        let targetIdx = closestIdx + direction;
+        targetIdx = Math.max(0, Math.min(uniqueSnaps.length - 1, targetIdx));
+        
+        const targetScroll = uniqueSnaps[targetIdx];
+        
+        wheelLockRef.current = true;
+        container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+        
+        setTimeout(() => {
+          wheelLockRef.current = false;
+        }, 400);
+      };
+  
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      return () => container.removeEventListener('wheel', handleWheel);
+    }, [isSecondary, primParentRef, secParentRef]);
+
     return (
       <div
         className="flex-1 min-h-0 overflow-x-auto overflow-y-auto border-none rounded-none m-0 p-0 relative outline-none"
@@ -252,63 +327,6 @@ export const TableView = ({
           } : {})
         }}
         tabIndex={0}
-        onWheel={(e) => {
-          if (!hasAnyExplicitPinned) return;
-          const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
-          if (!isHorizontal) return;
-          
-          e.preventDefault();
-          
-          const container = currentParentRef?.current;
-          if (!container) return;
-          if (wheelLockRef.current) return;
-          
-          const currentScrollLeft = container.scrollLeft;
-          const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-          
-          const snapPositions = [0];
-          let accWidth = 0;
-          if (!isSecondary && config?.rowReorderEnabled) accWidth += 40;
-          
-          visibleColumns.forEach((col: any) => {
-            const header = flatHeadersMap.get(col.key) || currentTable.getFlatHeaders().find((h: any) => h.id === col.key);
-            const activeWidth = header ? header.getSize() : col.width || (col.key === "sr" ? state.globalRowNoWidth || 100 : col.type === "image" ? 137 : 150);
-            
-            if (!col.pinned && col.key !== "sr") {
-              const snapPos = accWidth - currentLeftOffset;
-              if (snapPos > 0 && snapPos < maxScrollLeft) {
-                snapPositions.push(snapPos);
-              }
-            }
-            accWidth += activeWidth;
-          });
-          snapPositions.push(maxScrollLeft);
-          
-          const uniqueSnaps = Array.from(new Set(snapPositions)).sort((a, b) => a - b);
-          
-          let closestIdx = 0;
-          let minDiff = Infinity;
-          for (let i = 0; i < uniqueSnaps.length; i++) {
-            const diff = Math.abs(uniqueSnaps[i] - currentScrollLeft);
-            if (diff < minDiff) {
-              minDiff = diff;
-              closestIdx = i;
-            }
-          }
-          
-          const direction = (e.deltaX || e.deltaY) > 0 ? 1 : -1;
-          let targetIdx = closestIdx + direction;
-          targetIdx = Math.max(0, Math.min(uniqueSnaps.length - 1, targetIdx));
-          
-          const targetScroll = uniqueSnaps[targetIdx];
-          
-          wheelLockRef.current = true;
-          container.scrollTo({ left: targetScroll, behavior: 'smooth' });
-          
-          setTimeout(() => {
-            wheelLockRef.current = false;
-          }, 400);
-        }}
         onKeyDown={(e) => {
           if (
             e.target instanceof HTMLInputElement ||
