@@ -228,6 +228,12 @@ export const TableView = ({
       <div
         className="flex-1 min-h-0 overflow-x-auto overflow-y-auto border-none rounded-none m-0 p-0 relative outline-none"
         ref={currentParentRef}
+        style={{
+          ...(hasAnyExplicitPinned ? {
+            scrollSnapType: 'x proximity',
+            scrollPaddingLeft: `${currentLeftOffset}px`
+          } : {})
+        }}
         tabIndex={0}
         onKeyDown={(e) => {
           if (
@@ -319,7 +325,8 @@ export const TableView = ({
                         width: `${activeWidth}px`,
                         minWidth: `${activeWidth}px`,
                         maxWidth: `${activeWidth}px`,
-                        ...(isPinned ? { left: `${leftOffset}px`, zIndex: 30 } : { zIndex: 20 })
+                        ...(isPinned ? { left: `${leftOffset}px`, zIndex: 30 } : { zIndex: 20 }),
+                        ...(hasAnyExplicitPinned && !isPinned && col.key !== "sr" ? { scrollSnapAlign: 'start' } : {})
                       }}
                     >
                       <div className="flex items-center gap-1">
