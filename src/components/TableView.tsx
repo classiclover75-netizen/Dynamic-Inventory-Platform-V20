@@ -41,8 +41,6 @@ export const TableView = ({
     return () => observer.disconnect();
   }, [isSecondary, secParentRef, primParentRef]);
 
-  const wheelLockRef = React.useRef(false);
-  
   const originalRowIndexMap = React.useMemo(() => {
     const map = new Map<string, number>();
     if (originalRows && Array.isArray(originalRows)) {
@@ -243,78 +241,6 @@ export const TableView = ({
       colTokensMap[col.key] = tokens;
     });
 
-    const latestWheelData = React.useRef({
-      config, state, currentTable, visibleColumns, flatHeadersMap, currentLeftOffset, hasAnyExplicitPinned, isSecondary
-    });
-    React.useEffect(() => {
-      latestWheelData.current = { config, state, currentTable, visibleColumns, flatHeadersMap, currentLeftOffset, hasAnyExplicitPinned, isSecondary };
-    });
-  
-    React.useEffect(() => {
-      const parentRef = isSecondary ? secParentRef : primParentRef;
-      const container = parentRef?.current;
-      if (!container) return;
-  
-      const handleWheel = (e: WheelEvent) => {
-        const data = latestWheelData.current;
-        if (!data.hasAnyExplicitPinned) return;
-        const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
-        if (!isHorizontal) return;
-        
-        e.preventDefault();
-        
-        if (wheelLockRef.current) return;
-        
-        const currentScrollLeft = container.scrollLeft;
-        const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-        
-        const snapPositions = [0];
-        let accWidth = 0;
-        if (!data.isSecondary && data.config?.rowReorderEnabled) accWidth += 40;
-        
-        data.visibleColumns.forEach((col: any) => {
-          const header = data.flatHeadersMap.get(col.key) || data.currentTable.getFlatHeaders().find((h: any) => h.id === col.key);
-          const activeWidth = header ? header.getSize() : col.width || (col.key === "sr" ? data.state.globalRowNoWidth || 100 : col.type === "image" ? 137 : 150);
-          
-          if (!col.pinned && col.key !== "sr") {
-            const snapPos = accWidth - data.currentLeftOffset;
-            if (snapPos > 0 && snapPos < maxScrollLeft) {
-              snapPositions.push(snapPos);
-            }
-          }
-          accWidth += activeWidth;
-        });
-        snapPositions.push(maxScrollLeft);
-        
-        const uniqueSnaps = Array.from(new Set(snapPositions)).sort((a, b) => a - b);
-        
-        let closestIdx = 0;
-        let minDiff = Infinity;
-        for (let i = 0; i < uniqueSnaps.length; i++) {
-          const diff = Math.abs(uniqueSnaps[i] - currentScrollLeft);
-          if (diff < minDiff) {
-            minDiff = diff;
-            closestIdx = i;
-          }
-        }
-        
-        const direction = (e.deltaX || e.deltaY) > 0 ? 1 : -1;
-        let targetIdx = closestIdx + direction;
-        targetIdx = Math.max(0, Math.min(uniqueSnaps.length - 1, targetIdx));
-        
-        const targetScroll = uniqueSnaps[targetIdx];
-        
-        wheelLockRef.current = true;
-        container.scrollTo({ left: targetScroll, behavior: 'smooth' });
-        
-        setTimeout(() => {
-          wheelLockRef.current = false;
-        }, 400);
-      };
-  
-      container.addEventListener('wheel', handleWheel, { passive: false });
-      return () => container.removeEventListener('wheel', handleWheel);
-    }, [isSecondary, primParentRef, secParentRef]);
 
     return (
       <div
@@ -531,7 +457,7 @@ export const TableView = ({
                               >
                                 {!isSecondary && config.rowReorderEnabled && (
                                   <td
-                                    className={`text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 data-[hovered-exact=true]:shadow-inner ${hasAnyExplicitPinned ? (!isSecondary && selectedRowIds.has(row.id) ? 'bg-[#e8f0fe]' : 'bg-white') : ''}`}
+                                    className={`text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:!z-[18] data-[hovered-exact=true]:shadow-inner ${hasAnyExplicitPinned ? (!isSecondary && selectedRowIds.has(row.id) ? 'bg-[#e8f0fe]' : 'bg-white') : ''}`}
                                     style={{
                                       width: "40px",
                                       minWidth: "40px",
@@ -582,7 +508,7 @@ export const TableView = ({
                                   const pinnedShadowClass = isLastPinned ? 'shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] [clip-path:inset(0_-15px_0_0)] border-r-gray-300' : '';
 
                                   const hoverClass =
-                                    `data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 data-[hovered-exact=true]:shadow-inner ${pinnedBgClass} ${pinnedShadowClass}`;
+                                    `data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:!z-[18] data-[hovered-exact=true]:shadow-inner ${pinnedBgClass} ${pinnedShadowClass}`;
 
                                   const colTokens = isActiveRow
                                     ? colTokensMap[col.key] || []
