@@ -12,6 +12,7 @@ export interface RetiredSourceOverview {
   sourceName: string;
   itemCount: number;
   totalRetiredQty: number;
+  lastRetiredAt?: number;
   items: RetiredItemInfo[];
 }
 
@@ -67,6 +68,7 @@ export function buildRetiredOverview(rows: any[], columns: any[]): RetiredSource
           sourceName,
           itemCount: 0,
           totalRetiredQty: 0,
+          lastRetiredAt: typeof rs.retiredAt === 'number' ? rs.retiredAt : undefined,
           items: []
         });
       }
@@ -74,6 +76,9 @@ export function buildRetiredOverview(rows: any[], columns: any[]): RetiredSource
       const overview = sourceMap.get(sourceName)!;
       overview.itemCount += 1;
       overview.totalRetiredQty += retiredQty;
+      if (typeof rs.retiredAt === 'number') {
+        overview.lastRetiredAt = Math.max(overview.lastRetiredAt ?? 0, rs.retiredAt);
+      }
       overview.items.push({
         itemLabel,
         retiredQty,
@@ -83,7 +88,16 @@ export function buildRetiredOverview(rows: any[], columns: any[]): RetiredSource
     });
   });
 
-  return Array.from(sourceMap.values()).sort((a, b) => b.totalRetiredQty - a.totalRetiredQty);
+  return Array.from(sourceMap.values()).sort((a, b) => {
+    const at = a.lastRetiredAt, bt = b.lastRetiredAt;
+    if (at != null && bt != null) {
+      if (bt !== at) return bt - at;
+      return b.totalRetiredQty - a.totalRetiredQty;
+    }
+    if (at != null) return -1;
+    if (bt != null) return 1;
+    return b.totalRetiredQty - a.totalRetiredQty;
+  });
 }
 
 export interface FlatRetiredRow {

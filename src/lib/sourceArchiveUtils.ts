@@ -3,6 +3,7 @@ export interface MultiSourceItem {
   qty: string | number;
   color?: string;
   retired?: boolean;
+  retiredAt?: number;
 }
 
 export const isRetired = (source: MultiSourceItem): boolean => {
@@ -10,7 +11,11 @@ export const isRetired = (source: MultiSourceItem): boolean => {
 };
 
 export const setRetired = (source: MultiSourceItem, retired: boolean): MultiSourceItem => {
-  return { ...source, retired };
+  if (retired) {
+    return { ...source, retired: true, retiredAt: Date.now() };
+  }
+  const { retiredAt, ...rest } = source;
+  return { ...rest, retired: false };
 };
 
 export const splitActiveRetired = (sources: MultiSourceItem[]) => {
