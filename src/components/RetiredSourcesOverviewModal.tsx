@@ -464,11 +464,16 @@ export function RetiredSourcesOverviewModal({
            </Button>
         </div>
         <div className="flex-1 overflow-auto border rounded relative bg-white">
-          <table className="w-full text-sm border-collapse">
+          <table className="w-max table-fixed text-sm border-collapse">
             <colgroup>
-              {colIds.map(id => (
-                <col key={id} style={colWidths[id] ? { width: colWidths[id] + 'px' } : undefined} />
-              ))}
+              {colIds.map(id => {
+                let defaultWidth = 150;
+                if (id === '__retired_source') defaultWidth = 150;
+                if (id === '__total_sales') defaultWidth = 120;
+                return (
+                  <col key={id} style={{ width: (colWidths[id] || defaultWidth) + 'px' }} />
+                );
+              })}
             </colgroup>
             <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
               <tr>
