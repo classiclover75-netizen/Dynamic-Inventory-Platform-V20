@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { formatCellDisplay } from '../lib/formatCellDisplay';
 import { Modal, Button } from './ui';
 import { RowData, Column } from '../types';
 import { Trash2 } from 'lucide-react';
@@ -94,7 +95,7 @@ export const DuplicateFinderModal = React.memo(({
                             .filter((c) => !['id', '_id', 'sr', 'images'].includes(c.key) && c.type !== 'image')
                             .map((col) => {
                               const val = row[col.key];
-                              const displayVal = Array.isArray(val) ? val.join(', ') : String(val || '');
+                              const displayVal = formatCellDisplay(val);
                               return (
                                 <td key={col.key} className="p-2 border-r border-gray-100 last:border-r-0 truncate max-w-[150px]" title={displayVal}>
                                   {displayVal}

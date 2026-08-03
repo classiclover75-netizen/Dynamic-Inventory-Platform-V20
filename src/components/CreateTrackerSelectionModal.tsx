@@ -1,3 +1,4 @@
+import { formatCellDisplay } from '../lib/formatCellDisplay';
 import { parseMultiSource } from "../lib/appUtils";
 import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
 import { Button, Modal, Input } from "./ui";
@@ -314,11 +315,7 @@ export const CreateTrackerSelectionModal: React.FC<
                           />
                         ) : (
                           highlightText(
-                            String(
-                              rawVal === null || rawVal === undefined
-                                ? ""
-                                : rawVal,
-                            ),
+                            formatCellDisplay(rawVal),
                             deferredSearchQuery,
                           )
                         )}

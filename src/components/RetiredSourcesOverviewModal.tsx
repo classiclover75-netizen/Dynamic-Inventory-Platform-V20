@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useDeferredValue } from 'react';
 import ExcelJS from 'exceljs';
+import { formatCellDisplay } from '../lib/formatCellDisplay';
 import { saveAs } from 'file-saver';
 import { Search, FileSpreadsheet } from 'lucide-react';
 import { buildFlatRetiredRows, buildRetiredOverview, FlatRetiredRow } from '../lib/retiredOverviewUtils';
@@ -526,11 +527,7 @@ export function RetiredSourcesOverviewModal({
                           />
                         ) : (
                           highlightText(
-                            String(
-                              rawVal === null || rawVal === undefined
-                                ? ""
-                                : rawVal,
-                            ),
+                            formatCellDisplay(rawVal),
                             deferredSearchQuery,
                           )
                         )}

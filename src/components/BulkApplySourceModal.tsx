@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
+import { formatCellDisplay } from '../lib/formatCellDisplay';
 import { Search, ArrowLeft } from "lucide-react";
 import { Modal, Button } from "./ui";
 
@@ -392,7 +393,7 @@ export const BulkApplySourceModal: React.FC<BulkApplySourceModalProps> = ({
                       return (
                         <td key={c.key} className="p-2 border whitespace-pre-wrap break-words min-w-[150px]">
                           {highlightText(
-                            decodeHtmlEntities(String(rawVal || "")),
+                            decodeHtmlEntities(formatCellDisplay(rawVal)),
                             deferredSearchQuery
                           )}
                         </td>
