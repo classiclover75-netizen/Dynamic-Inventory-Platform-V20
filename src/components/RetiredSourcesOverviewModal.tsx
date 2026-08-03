@@ -357,6 +357,14 @@ export function RetiredSourcesOverviewModal({
   };
 
   const colIds = ["__retired_source", "__total_sales", ...sourceColumns.map(c => c.key)];
+  const getColWidth = (id: string) => {
+    if (colWidths[id]) return colWidths[id];
+    if (id === '__retired_source') return 150;
+    if (id === '__total_sales') return 120;
+    return 150;
+  };
+  const totalWidth = colIds.reduce((sum, id) => sum + getColWidth(id), 0);
+
   return (
     <Modal 
       isOpen={isOpen} 
@@ -463,30 +471,20 @@ export function RetiredSourcesOverviewModal({
               <FileSpreadsheet size={16} /> {isExporting ? "Exporting..." : "Export to Excel"}
            </Button>
         </div>
-        <div className="flex-1 overflow-auto border rounded relative bg-white">
-          <table className="w-max table-fixed text-sm border-collapse">
-            <colgroup>
-              {colIds.map(id => {
-                let defaultWidth = 150;
-                if (id === '__retired_source') defaultWidth = 150;
-                if (id === '__total_sales') defaultWidth = 120;
-                return (
-                  <col key={id} style={{ width: (colWidths[id] || defaultWidth) + 'px' }} />
-                );
-              })}
-            </colgroup>
+        <div className="flex-1 overflow-auto border rounded relative bg-white pl-2">
+          <table className="w-max table-fixed text-sm border-collapse" style={{ width: totalWidth + 'px' }}>
             <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
               <tr>
-                <th className="p-2 border text-left bg-purple-50 text-purple-800 relative">
+                <th className="p-2 border text-left bg-purple-50 text-purple-800 relative" style={{ width: getColWidth('__retired_source') + 'px', minWidth: getColWidth('__retired_source') + 'px' }}>
                   <div className="flex items-center gap-1">📦 Retired Source</div>
                   <div onMouseDown={(e) => startResize(e, "__retired_source")} onDoubleClick={() => resetCol("__retired_source")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                 </th>
-                <th className="p-2 border text-left bg-blue-50 text-blue-800 relative">
+                <th className="p-2 border text-left bg-blue-50 text-blue-800 relative" style={{ width: getColWidth('__total_sales') + 'px', minWidth: getColWidth('__total_sales') + 'px' }}>
                   <div className="flex items-center gap-1">📈 Total Sales</div>
                   <div onMouseDown={(e) => startResize(e, "__total_sales")} onDoubleClick={() => resetCol("__total_sales")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                 </th>
                 {sourceColumns.map((c, i) => (
-                  <th key={c.key} className="p-2 border text-left relative">
+                  <th key={c.key} className="p-2 border text-left relative" style={{ width: getColWidth(c.key) + 'px', minWidth: getColWidth(c.key) + 'px' }}>
                     <div className="flex items-center gap-1">
                       {i + 1}. {c.name} {c.locked && "🔒"}
                     </div>
@@ -498,11 +496,11 @@ export function RetiredSourcesOverviewModal({
             <tbody>
               {filteredRows.map((row, i) => (
                 <tr key={`${row._originalRowId}-${row._retiredSourceName}-${i}`} className="hover:bg-gray-50">
-                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30">
+                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30" style={{ width: getColWidth('__retired_source') + 'px', minWidth: getColWidth('__retired_source') + 'px' }}>
                     <div>{highlightText(row._retiredSourceName, deferredSearchQuery)}</div>
                     <div className="text-[10px] text-gray-500 uppercase mt-0.5 tracking-wider">Qty: {row._retiredQty}</div>
                   </td>
-                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-blue-700 bg-blue-50/30">
+                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-blue-700 bg-blue-50/30" style={{ width: getColWidth('__total_sales') + 'px', minWidth: getColWidth('__total_sales') + 'px' }}>
                     {highlightText(String(row._totalSales), deferredSearchQuery)}
                   </td>
                   
@@ -512,6 +510,7 @@ export function RetiredSourcesOverviewModal({
                       <td
                         key={c.key}
                         className="p-2 border whitespace-pre-wrap break-words"
+                        style={{ width: getColWidth(c.key) + 'px', minWidth: getColWidth(c.key) + 'px' }}
                       >
                         {(c.type === "image" || c.type === "file") &&
                         rawVal &&
