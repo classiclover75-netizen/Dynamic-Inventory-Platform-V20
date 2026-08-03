@@ -6,7 +6,7 @@ export const getRowRetiredSourceNames = (row: any): string[] => {
   try {
     const sources = parseMultiSource(row.total_qty);
     return sources
-      .filter((s: any) => isRetired(s.source))
+      .filter((s: any) => isRetired(s))
       .map((s: any) => s.source);
   } catch (e) {
     console.error("Error in getRowRetiredSourceNames", e);
