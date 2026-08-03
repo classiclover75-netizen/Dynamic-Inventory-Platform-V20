@@ -27,6 +27,7 @@ export interface Column {
   sortDirection?: "asc" | "desc";
   sortLocked?: boolean;
   sortPriority?: number;
+  pinned?: boolean;
   width?: number;
   resizeLocked?: boolean;
   archived?: boolean;

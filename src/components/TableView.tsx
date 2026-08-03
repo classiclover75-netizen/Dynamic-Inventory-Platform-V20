@@ -140,9 +140,45 @@ export const TableView = ({
     const isTableSorted = config.columns.some(
       (col) => col.sortEnabled && col.sortPriority && col.sortPriority > 0,
     );
+    const hasAnyExplicitPinned = config.columns.some((col: any) => col.pinned);
     const visibleColumns = config.columns.filter(
-      (col) => showArchived || !col.archived,
-    );
+      (col: any) => showArchived || !col.archived,
+    ).map((col: any) => {
+      if (hasAnyExplicitPinned && col.key === 'sr') {
+         return { ...col, pinned: true };
+      }
+      return col;
+    });
+    
+    const pinnedOffsets: Record<string, number> = {};
+    let currentLeftOffset = 0;
+    const hasRowReorder = !isSecondary && config.rowReorderEnabled;
+    
+    if (hasAnyExplicitPinned) {
+      if (hasRowReorder) {
+        currentLeftOffset += 40;
+      }
+      visibleColumns.forEach((col: any) => {
+        if (col.pinned) {
+          pinnedOffsets[col.key] = currentLeftOffset;
+          const header = flatHeadersMap.get(col.key) || currentTable
+            .getFlatHeaders()
+            .find((h: any) => h.id === col.key);
+          const activeWidth = header
+            ? header.getSize()
+            : col.width ||
+              (col.key === "sr"
+                ? state.globalRowNoWidth || 100
+                : col.type === "image"
+                  ? 137
+                  : 150);
+          currentLeftOffset += activeWidth;
+        }
+      });
+    }
+
+    const pinnedCols = visibleColumns.filter((c: any) => c.pinned);
+    const lastPinnedColKey = pinnedCols.length > 0 ? pinnedCols[pinnedCols.length - 1].key : null;
     if (!config || !config.columns) {
       return (
         <div className="flex flex-col items-center justify-center p-20 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 m-4">
@@ -239,11 +275,12 @@ export const TableView = ({
               <tr>
                 {!isSecondary && config.rowReorderEnabled && (
                   <th
-                    className={`sticky top-0 z-20 text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] bg-[#f3f3f3] data-[hovered-col=true]:bg-[#fce7f3]`}
+                    className={`sticky top-0 text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] bg-[#f3f3f3] data-[hovered-col=true]:bg-[#fce7f3]`}
                     style={{
                       width: "40px",
                       minWidth: "40px",
                       maxWidth: "40px",
+                      ...(hasAnyExplicitPinned ? { left: 0, zIndex: 30 } : { zIndex: 20 })
                     }}
                   >
                   </th>
@@ -269,14 +306,19 @@ export const TableView = ({
                         ? "text-center"
                         : "text-left";
 
+                  const isPinned = col.pinned;
+                  const leftOffset = isPinned ? pinnedOffsets[col.key] : undefined;
+                  const isLastPinned = isPinned && col.key === lastPinnedColKey;
+                  
                   return (
                     <th
                       key={col.key}
-                      className={`sticky top-0 z-20 text-[14px] font-bold text-[#2f3d49] p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${defaultWidthClass} bg-[#f3f3f3] data-[hovered-col=true]:bg-[#fce7f3] ${isResizing ? "overflow-visible" : ""}`}
+                      className={`sticky top-0 text-[14px] font-bold text-[#2f3d49] p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${defaultWidthClass} bg-[#f3f3f3] data-[hovered-col=true]:bg-[#fce7f3] ${isResizing ? "overflow-visible" : ""} ${isLastPinned ? "shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] clip-path-[inset(0_-15px_0_0)] border-r-gray-300" : ""}`}
                       style={{
                         width: `${activeWidth}px`,
                         minWidth: `${activeWidth}px`,
                         maxWidth: `${activeWidth}px`,
+                        ...(isPinned ? { left: `${leftOffset}px`, zIndex: 30 } : { zIndex: 20 })
                       }}
                     >
                       <div className="flex items-center gap-1">
@@ -377,11 +419,12 @@ export const TableView = ({
                               >
                                 {!isSecondary && config.rowReorderEnabled && (
                                   <td
-                                    className={`text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 data-[hovered-exact=true]:shadow-inner`}
+                                    className={`text-center p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 data-[hovered-exact=true]:shadow-inner ${hasAnyExplicitPinned ? (!isSecondary && selectedRowIds.has(row.id) ? 'bg-[#e8f0fe]' : 'bg-white') : ''}`}
                                     style={{
                                       width: "40px",
                                       minWidth: "40px",
                                       maxWidth: "40px",
+                                      ...(hasAnyExplicitPinned ? { position: 'sticky', left: 0, zIndex: 15 } : {})
                                     }}
                                   >
                                     <div className="flex items-center justify-center relative">
@@ -419,29 +462,36 @@ export const TableView = ({
                                     maxWidth: `${activeWidth}px`,
                                   };
 
+                                  const isPinned = col.pinned;
+                                  const leftOffset = isPinned ? pinnedOffsets[col.key] : undefined;
+                                  const isLastPinned = isPinned && col.key === lastPinnedColKey;
+                                  
+                                  const pinnedBgClass = isPinned ? (!isSecondary && selectedRowIds.has(row.id) ? 'bg-[#e8f0fe]' : 'bg-white') : '';
+                                  const pinnedShadowClass = isLastPinned ? 'shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] clip-path-[inset(0_-15px_0_0)] border-r-gray-300' : '';
+
                                   const hoverClass =
-                                    "data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 data-[hovered-exact=true]:shadow-inner";
+                                    `data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:outline data-[hovered-exact=true]:outline-[3px] data-[hovered-exact=true]:outline-[#2b579a] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 data-[hovered-exact=true]:shadow-inner ${pinnedBgClass} ${pinnedShadowClass}`;
+
                                   const colTokens = isActiveRow
                                     ? colTokensMap[col.key] || []
                                     : [];
-
                                   const isResizing = header?.column?.getIsResizing();
                                   const commonProps = {
                                     style: {
                                       ...widthStyle,
-                                      position: "relative" as const,
+                                      position: (isPinned ? "sticky" : "relative") as "sticky" | "relative",
+                                      ...(isPinned ? { left: `${leftOffset}px`, zIndex: 15 } : {}),
                                       overflow: isResizing
                                         ? ("visible" as const)
                                         : ("hidden" as const),
                                     },
                                   };
-
                                   if (col.key === "sr") {
                                     return (
                                       <td
                                         key={col.key}
                                         {...commonProps}
-                                        className={`font-normal p-1 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] bg-[#f3f3f3] data-[hovered-row=true]:bg-[#fce7f3] overflow-hidden`}
+                                        className={`font-normal p-1 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] bg-[#f3f3f3] data-[hovered-row=true]:bg-[#fce7f3] overflow-hidden ${pinnedShadowClass}`}
                                       >
                                         <div className="flex items-center justify-center gap-0 px-0.5 whitespace-nowrap">
                                           <span className="text-[14px]">
