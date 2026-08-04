@@ -249,7 +249,7 @@ export const TableView = ({
         ref={currentParentRef}
         style={{
           ...(hasAnyExplicitPinned ? {
-            scrollSnapType: 'x mandatory',
+            scrollSnapType: 'x proximity',
             scrollPaddingLeft: `${currentLeftOffset}px`
           } : {})
         }}
