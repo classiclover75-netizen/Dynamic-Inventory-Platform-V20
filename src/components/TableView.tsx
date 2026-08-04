@@ -923,7 +923,11 @@ export const TableView = ({
                                               (s: any, idx: number) => (
                                                 <div
                                                   key={`ret-auto-${idx}`}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300`}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onOpenRetiredOverview) onOpenRetiredOverview(getRowRetiredSourceNames(row));
+                                                  }}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300 cursor-pointer hover:bg-gray-200 transition-colors`}
                                                 >
                                                   <span className="opacity-70 text-gray-700">
                                                     <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
@@ -937,7 +941,11 @@ export const TableView = ({
                                               (s: any, idx: number) => (
                                                 <div
                                                   key={`ret-hidden-${idx}`}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300`}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onOpenRetiredOverview) onOpenRetiredOverview(getRowRetiredSourceNames(row));
+                                                  }}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300 cursor-pointer hover:bg-gray-200 transition-colors`}
                                                 >
                                                   <span className="opacity-70 text-gray-700">
                                                     <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
@@ -947,17 +955,7 @@ export const TableView = ({
                                                 </div>
                                               ),
                                             )}
-                                            {hiddenRetiredCount > 0 && (
-                                              <button 
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  if (onOpenRetiredOverview) onOpenRetiredOverview(getRowRetiredSourceNames(row));
-                                                }}
-                                                className="mt-0.5 text-[10px] text-gray-400 font-bold uppercase cursor-pointer hover:text-gray-600 hover:bg-gray-50 text-center py-0.5 border border-dashed border-gray-300 rounded w-full transition-colors"
-                                              >
-                                                Show hidden retired ({hiddenRetiredCount})
-                                              </button>
-                                            )}
+
                                             {active.length >= 2 && (
                                               <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
                                                 <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
