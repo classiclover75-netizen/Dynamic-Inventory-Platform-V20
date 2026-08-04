@@ -64,9 +64,9 @@ export function sortOverviewRows(rows: any[], sortBy: string, sortDir: 'asc' | '
             const isRetiredA = !!a._isRetired;
             const isRetiredB = !!b._isRetired;
             if (isRetiredA !== isRetiredB) {
-                // desc: retired first (true before false) => if desc and A is retired, A comes first (-1)
-                // if asc: active first (false before true)
-                if (sortDir === 'desc') {
+                // asc: retired first (true before false) => if asc and A is retired, A comes first (-1)
+                // if desc: active first (false before true)
+                if (sortDir === 'asc') {
                     return isRetiredA ? -1 : 1;
                 } else {
                     return isRetiredA ? 1 : -1;
@@ -75,11 +75,11 @@ export function sortOverviewRows(rows: any[], sortBy: string, sortDir: 'asc' | '
             // Same status: sort by source name
             const strA = String(sourceA || '').toLowerCase();
             const strB = String(sourceB || '').toLowerCase();
-            if (sortDir === 'desc') {
-                // desc: within group, A-Z
+            if (sortDir === 'asc') {
+                // asc: within group, A-Z
                 return strA.localeCompare(strB);
             } else {
-                // asc: within group, Z-A
+                // desc: within group, Z-A
                 return strB.localeCompare(strA);
             }
         } else if (sortBy === 'Total Sale') {

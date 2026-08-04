@@ -581,7 +581,11 @@ export function ActiveSourcesOverviewModal({
                Show All Statuses
              </label>
              <div className="w-px h-4 bg-gray-300 mx-1"></div>
-             <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="border-none bg-transparent outline-none cursor-pointer py-1 pl-2 font-medium text-gray-700">
+             <select value={sortBy} onChange={e => {
+               const val = e.target.value;
+               setSortBy(val);
+               if (val === 'Status') setSortDir('asc');
+             }} className="border-none bg-transparent outline-none cursor-pointer py-1 pl-2 font-medium text-gray-700">
                               <option value="Recently Added">Recently Added</option>
                {showAllStatuses && <option value="Status">Status (Retired first)</option>}
                <option value="Total Sale">Total Sale</option>
