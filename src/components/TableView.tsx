@@ -198,7 +198,7 @@ export const TableView = ({
 
     const pinnedCols = visibleColumns.filter((c: any) => c.pinned);
     const lastPinnedColKey = pinnedCols.length > 0 ? pinnedCols[pinnedCols.length - 1].key : null;
-    const spacerWidth = hasAnyExplicitPinned ? Math.max(50, (containerWidth || 0) - currentLeftOffset) : 50;
+    const spacerWidth = 50;
     if (!config || !config.columns) {
       return (
         <div className="flex flex-col items-center justify-center p-20 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 m-4">
