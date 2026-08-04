@@ -956,12 +956,18 @@ export const TableView = ({
                                         </td>
                                       );
                                     } if (col.type === "sale_tracker") {
-                                      const totalSources = parseMultiSource(
+                                      const totalSourcesRaw = parseMultiSource(
                                         row.total_qty,
                                       );
                                       const currentVal =
                                         parseMultiSource(rawVal);
                                       
+                                      const totalSources = totalSourcesRaw.filter((ts: any) => {
+                                          if (!isRetired(ts)) return true;
+                                          const saleEntry = currentVal.find((s: any) => s.source === ts.source);
+                                          return saleEntry && (parseFloat(saleEntry.qty) || 0) > 0;
+                                      });
+
                                       const isCellEditing = inlineEdit?.id?.startsWith(`${row.id}-${col.key}-`);
                                       const draftVal = isCellEditing ? parseMultiSource(inlineEdit!.val) : currentVal;
 
@@ -987,7 +993,7 @@ export const TableView = ({
                                                   <div key={idx} className="w-full">
                                                     <div className={`group w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${ts.color}`}>
                                                       <div className="flex items-center justify-between w-full">
-                                                        <span className="opacity-70 shrink-0"><span className="mr-1">{formatSourceNumber(idx)}</span>{ts.source}:</span>
+                                                        <span className="opacity-70 shrink-0"><span className="mr-1">{formatSourceNumber(totalSourcesRaw.findIndex((raw_ts: any) => raw_ts.source === ts.source))}</span>{ts.source}:</span>
                                                         <span className="flex-1 text-right">{saleQty}</span>
                                                       </div>
                                                       <button
