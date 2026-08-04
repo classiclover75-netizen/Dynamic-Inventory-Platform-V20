@@ -176,7 +176,7 @@ export function ActiveSourcesOverviewModal({
             let totalSaleForSource = 0;
             saleCols.forEach(sc => {
                 const saleArr = parseMultiSource(row[sc.key]);
-                const sSale = saleArr.find((ss:any) => ss.source === row._activeSourceName && (showAllStatuses ? isRetired(ss) === !!row._isRetired : true));
+                const sSale = saleArr.find((ss:any) => ss.source === row._activeSourceName);
                 if (sSale) totalSaleForSource += parseFloat(String(sSale.qty)) || 0;
             });
             return String((parseFloat(String(ts.qty)) || 0) - totalSaleForSource);
@@ -194,7 +194,7 @@ export function ActiveSourcesOverviewModal({
       if (rawVal.trim().startsWith("[")) {
         try {
           const sources = parseMultiSource(rawVal);
-          const s = sources.find((ss: any) => ss.source === row._activeSourceName && (showAllStatuses ? isRetired(ss) === !!row._isRetired : true));
+          const s = sources.find((ss: any) => ss.source === row._activeSourceName && (col.key === 'total_qty' && showAllStatuses ? isRetired(ss) === !!row._isRetired : true));
           if (s) {
             let res = String(s.qty);
             if (col.key === 'total_qty' && showAllStatuses && row._isRetired) {

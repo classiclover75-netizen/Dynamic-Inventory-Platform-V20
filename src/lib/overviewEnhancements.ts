@@ -127,7 +127,7 @@ export function buildMixedFlatRows(rows: any[], columns: any[], baseSources: Set
             saleVal.forEach((s: any) => {
                 const sqty = parseFloat(String(s.qty)) || 0;
                 if (sqty > 0) {
-                    const key = s.source + (isRetired(s) ? '_retired' : '_active');
+                    const key = s.source;
                     rowSalesTotalBySource.set(key, (rowSalesTotalBySource.get(key) || 0) + sqty);
                 }
             });
@@ -136,7 +136,7 @@ export function buildMixedFlatRows(rows: any[], columns: any[], baseSources: Set
         relevantSources.forEach((rs: any) => {
             const sourceName = rs.source;
             const qty = parseFloat(String(rs.qty)) || 0;
-            const key = sourceName + (isRetired(rs) ? '_retired' : '_active');
+            const key = sourceName;
             const tSales = rowSalesTotalBySource.get(key) || 0;
             flatRows.push({
                 ...row,
