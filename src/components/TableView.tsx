@@ -249,7 +249,7 @@ export const TableView = ({
         ref={currentParentRef}
         style={{
           ...(hasAnyExplicitPinned ? {
-            scrollSnapType: 'x proximity',
+            scrollSnapType: 'none',
             scrollPaddingLeft: `${currentLeftOffset}px`
           } : {})
         }}
@@ -339,13 +339,13 @@ export const TableView = ({
                   return (
                     <th
                       key={col.key}
-                      className={`sticky top-0 text-[14px] font-bold text-[#2f3d49] p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${defaultWidthClass} bg-[#f3f3f3] data-[hovered-col=true]:bg-[#fce7f3] ${isResizing ? "overflow-visible" : ""} ${isLastPinned ? "shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] [clip-path:inset(0_-15px_0_0)] border-r-gray-300" : ""}`}
+                      className={`sticky top-0 text-[14px] font-bold text-[#2f3d49] p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${defaultWidthClass} bg-[#f3f3f3] data-[hovered-col=true]:bg-[#fce7f3] ${isResizing ? "overflow-visible" : ""} ${isLastPinned ? "shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] border-r-gray-300" : ""}`}
                       style={{
                         width: `${activeWidth}px`,
                         minWidth: `${activeWidth}px`,
                         maxWidth: `${activeWidth}px`,
                         ...(isPinned ? { left: `${leftOffset}px`, zIndex: 30 } : { zIndex: 20 }),
-                        ...(hasAnyExplicitPinned && !isPinned && col.key !== "sr" ? { scrollSnapAlign: 'start' } : {})
+
                       }}
                     >
                       <div className="flex items-center gap-1">
@@ -506,7 +506,7 @@ export const TableView = ({
                                   const isLastPinned = isPinned && col.key === lastPinnedColKey;
                                   
                                   const pinnedBgClass = isPinned ? (!isSecondary && selectedRowIds.has(row.id) ? 'bg-[#e8f0fe]' : 'bg-white') : '';
-                                  const pinnedShadowClass = isLastPinned ? 'shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] [clip-path:inset(0_-15px_0_0)] border-r-gray-300' : '';
+                                  const pinnedShadowClass = isLastPinned ? 'shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] border-r-gray-300' : '';
 
                                   const hoverClass =
                                     `data-[hovered-col=true]:bg-[#f0f7ff] data-[hovered-row=true]:bg-[#e8f0fe] data-[hovered-exact=true]:!bg-[#d2e3fc] data-[hovered-exact=true]:shadow-[inset_0_0_0_3px_#2b579a,inset_0_2px_4px_0_rgba(0,0,0,0.05)] data-[hovered-exact=true]:relative data-[hovered-exact=true]:z-10 ${pinnedBgClass} ${pinnedShadowClass}`;
