@@ -897,6 +897,7 @@ export const TableView = ({
                                         return saleSources.some((ss: any) => ss.source === r.source && (parseFloat(ss.qty) || 0) > 0);
                                       }) : [];
                                       const hiddenRetiredCount = retired.length - autoRevealedRetired.length;
+                                      const hiddenRetired = retired.filter((r: any) => !autoRevealedRetired.some((a: any) => a.source === r.source));
 
                                       return (
                                         <td
@@ -922,6 +923,20 @@ export const TableView = ({
                                               (s: any, idx: number) => (
                                                 <div
                                                   key={`ret-auto-${idx}`}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300`}
+                                                >
+                                                  <span className="opacity-70 text-gray-700">
+                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
+                                                  </span>{" "}
+                                                  <span className="text-gray-700">{s.qty}</span>
+                                                  <span className="ml-auto text-[9px] uppercase tracking-wider bg-gray-200 text-gray-600 px-1 rounded">Retired</span>
+                                                </div>
+                                              ),
+                                            )}
+                                            {hiddenRetired.map(
+                                              (s: any, idx: number) => (
+                                                <div
+                                                  key={`ret-hidden-${idx}`}
                                                   className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300`}
                                                 >
                                                   <span className="opacity-70 text-gray-700">
