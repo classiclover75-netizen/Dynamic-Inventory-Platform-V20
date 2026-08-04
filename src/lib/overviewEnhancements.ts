@@ -49,7 +49,7 @@ export function getSourceNumericValue(row: any, colKey: string, sourceName: stri
     return 0;
 }
 
-export function sortOverviewRows(rows: any[], sortBy: string, sortDir: 'asc' | 'desc', columns: any[], sourceProp: string): any[] {
+export function sortOverviewRows(rows: any[], sortBy: string, sortDir: 'asc' | 'desc', columns: any[], sourceProp: string, statusFirst: 'retired' | 'active' = 'retired'): any[] {
     if (sortBy === 'Recently Added') {
         return sortDir === 'asc' ? [...rows] : [...rows].reverse();
     }
@@ -64,12 +64,18 @@ export function sortOverviewRows(rows: any[], sortBy: string, sortDir: 'asc' | '
             const isRetiredA = !!a._isRetired;
             const isRetiredB = !!b._isRetired;
             if (isRetiredA !== isRetiredB) {
-                // asc: retired first (true before false) => if asc and A is retired, A comes first (-1)
-                // if desc: active first (false before true)
-                if (sortDir === 'asc') {
-                    return isRetiredA ? -1 : 1;
+                if (statusFirst === 'active') {
+                    if (sortDir === 'asc') {
+                        return isRetiredA ? 1 : -1;
+                    } else {
+                        return isRetiredA ? -1 : 1;
+                    }
                 } else {
-                    return isRetiredA ? 1 : -1;
+                    if (sortDir === 'asc') {
+                        return isRetiredA ? -1 : 1;
+                    } else {
+                        return isRetiredA ? 1 : -1;
+                    }
                 }
             }
             // Same status: sort by source name

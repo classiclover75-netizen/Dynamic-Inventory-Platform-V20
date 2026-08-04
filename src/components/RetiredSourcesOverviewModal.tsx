@@ -330,7 +330,7 @@ export function RetiredSourcesOverviewModal({
       });
       }); // missing filter closing
     }
-    return sortOverviewRows(result, sortBy, sortDir, columns, '_retiredSourceName');
+    return sortOverviewRows(result, sortBy, sortDir, columns, '_retiredSourceName', 'retired');
   }, [flatRows, sourceColumns, deferredSearchQuery, selectedSources, sortBy, sortDir, columns]);
 
   const handleExport = async () => {
@@ -587,7 +587,7 @@ export function RetiredSourcesOverviewModal({
                if (val === 'Status') setSortDir('asc');
              }} className="border-none bg-transparent outline-none cursor-pointer py-1 pl-2 font-medium text-gray-700">
                               <option value="Recently Added">Recently Added</option>
-               {showAllStatuses && <option value="Status">Status (Retired first)</option>}
+               {showAllStatuses && <option value="Status">Status (Retired/Active)</option>}
                <option value="Total Sale">Total Sale</option>
                <option value="Total Qty">Total Qty</option>
                <option value="Remaining Qty">Remaining Qty</option>
@@ -603,7 +603,7 @@ export function RetiredSourcesOverviewModal({
             <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
               <tr>
                 <th className={getHeaderCls('__retired_source', "p-2 border text-left bg-purple-50 text-purple-800 relative")} style={getHeaderSty('__retired_source', getColWidth('__retired_source'))}>
-                  <div className="flex items-center justify-between w-full"><div className="flex items-center gap-1">📦 Retired Source</div>{renderPinBtn('__retired_source')}</div>
+                  <div className="flex items-center justify-between w-full"><div className="flex items-center gap-1">📦 {showAllStatuses ? "Retired/Active Sources" : "Retired Source"}</div>{renderPinBtn('__retired_source')}</div>
                   <div onMouseDown={(e) => startResize(e, "__retired_source")} onDoubleClick={() => resetCol("__retired_source")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                 </th>
                 <th className={getHeaderCls('__total_sales', "p-2 border text-left bg-blue-50 text-blue-800 relative")} style={getHeaderSty('__total_sales', getColWidth('__total_sales'))}>
