@@ -5,7 +5,8 @@ import { saveAs } from 'file-saver';
 import { Search, FileSpreadsheet } from 'lucide-react';
 import { buildFlatActiveRows, buildActiveOverview, FlatActiveRow } from '../lib/activeOverviewUtils';
 import { parseMultiSource } from '../lib/appUtils';
-import { isRetired, sumActive } from '../lib/sourceArchiveUtils';
+import { isRetired } from '../lib/sourceArchiveUtils';
+import { sortOverviewRows, getStatusCounts, buildMixedFlatRows } from '../lib/overviewEnhancements';
 import { useOverviewColumnPin } from '../hooks/useOverviewColumnPin';
 import { Modal, Button, Input } from './ui';
 import { useToast } from './ToastProvider';
@@ -34,12 +35,17 @@ export function ActiveSourcesOverviewModal({
   initialSelectedSources?: string[] | null;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("Recently Added");
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [showAllStatuses, setShowAllStatuses] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   const [showSourceDropdown, setShowSourceDropdown] = useState(false);
   const [sourceSearchQuery, setSourceSearchQuery] = useState("");
+
+  const saleCols = useMemo(() => columns.filter((c: any) => c.type === "sale_tracker"), [columns]);
   const [showSaleColumns, setShowSaleColumns] = useState(true);
 
   const [colWidths, setColWidths] = useState<Record<string, number>>(initialColWidths);
@@ -117,8 +123,13 @@ export function ActiveSourcesOverviewModal({
 
   const flatRows = useMemo(() => {
     if (!isOpen) return [];
+    if (showAllStatuses) {
+      const baseRows = buildFlatActiveRows(rows, columns);
+      const baseSources = new Set<string>(baseRows.map((r: any) => r._activeSourceName));
+      return buildMixedFlatRows(rows, columns, baseSources, '_activeSourceName', '_activeQty');
+    }
     return buildFlatActiveRows(rows, columns);
-  }, [isOpen, rows, columns]);
+  }, [isOpen, rows, columns, showAllStatuses]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -159,12 +170,13 @@ export function ActiveSourcesOverviewModal({
             const totalSources = parseMultiSource(row.total_qty);
             const ts = totalSources.find((s: any) => s.source === row._activeSourceName);
             if (!ts) return "0";
+            if (showAllStatuses && isRetired(ts) !== !!row._isRetired) return "0";
             
             const saleCols = columns.filter((c) => c.type === "sale_tracker");
             let totalSaleForSource = 0;
             saleCols.forEach(sc => {
                 const saleArr = parseMultiSource(row[sc.key]);
-                const sSale = saleArr.find((ss:any) => ss.source === row._activeSourceName);
+                const sSale = saleArr.find((ss:any) => ss.source === row._activeSourceName && (showAllStatuses ? isRetired(ss) === !!row._isRetired : true));
                 if (sSale) totalSaleForSource += parseFloat(String(sSale.qty)) || 0;
             });
             return String((parseFloat(String(ts.qty)) || 0) - totalSaleForSource);
@@ -182,9 +194,15 @@ export function ActiveSourcesOverviewModal({
       if (rawVal.trim().startsWith("[")) {
         try {
           const sources = parseMultiSource(rawVal);
-          const s = sources.find((ss: any) => ss.source === row._activeSourceName);
+          const s = sources.find((ss: any) => ss.source === row._activeSourceName && (showAllStatuses ? isRetired(ss) === !!row._isRetired : true));
           if (s) {
-            return String(s.qty);
+            let res = String(s.qty);
+            if (col.key === 'total_qty' && showAllStatuses && row._isRetired) {
+                res = `${s.source}: ${s.qty} (retired)`;
+            } else if (col.key === 'total_qty' && showAllStatuses && !row._isRetired) {
+                res = `${s.source}: ${s.qty}`;
+            }
+            return res;
           }
           return "0";
         } catch(e) {
@@ -340,7 +358,7 @@ export function ActiveSourcesOverviewModal({
       
       for (const row of filteredRows) {
         const rowValues: any = {};
-        rowValues["Active Source"] = row._activeSourceName;
+        rowValues["Active Source"] = row._activeSourceName + (showAllStatuses && row._isRetired ? ' (retired)' : '');
         rowValues["Active Qty"] = row._activeQty;
         rowValues["Total Sales"] = row._totalSales;
         
@@ -366,7 +384,16 @@ export function ActiveSourcesOverviewModal({
     }
   };
 
-  const colIds = ["__active_source", "__total_sales", ...sourceColumns.map(c => c.key)];
+  const visibleSourceNames = useMemo(() => {
+    if (selectedSources.size > 0) return selectedSources;
+    return new Set<string>(flatRows.map((r: any) => r._activeSourceName));
+  }, [selectedSources, flatRows]);
+
+  const statusCounts = useMemo(() => {
+    return getStatusCounts(rows, visibleSourceNames);
+  }, [rows, visibleSourceNames]);
+
+  const colIds = ["__active_source", "__total_sales", ...sourceColumns.map((c: any) => c.key)];
   const getColWidth = (id: string) => {
     if (colWidths[id]) return colWidths[id];
     if (id === '__active_source') return 150;
@@ -529,6 +556,23 @@ export function ActiveSourcesOverviewModal({
            >
               <FileSpreadsheet size={16} /> {isExporting ? "Exporting..." : "Export to Excel"}
            </Button>
+           <div className="flex items-center gap-2 text-sm bg-white p-1 rounded border shadow-sm">
+             <label className="flex items-center gap-1 cursor-pointer px-2 py-1 hover:bg-gray-50 rounded select-none">
+               <input type="checkbox" checked={showAllStatuses} onChange={e => setShowAllStatuses(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+               Show All Statuses
+             </label>
+             <div className="w-px h-4 bg-gray-300 mx-1"></div>
+             <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="border-none bg-transparent outline-none cursor-pointer py-1 pl-2 font-medium text-gray-700">
+               <option value="Recently Added">Recently Added</option>
+               <option value="Total Sale">Total Sale</option>
+               <option value="Total Qty">Total Qty</option>
+               <option value="Remaining Qty">Remaining Qty</option>
+               {saleCols.map((c: any) => <option key={c.key} value={c.name}>{c.name}</option>)}
+             </select>
+             <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} className="px-2 py-1 rounded hover:bg-gray-100 text-gray-600 font-medium border border-gray-200" title={sortDir === 'asc' ? 'Ascending' : 'Descending'}>
+               {sortDir === 'asc' ? '↑' : '↓'}
+             </button>
+           </div>
         </div>
         <div className="flex-1 overflow-auto border rounded relative bg-white pr-4">
           <table className="w-max table-fixed text-sm border-collapse" style={{ width: totalWidth + 'px' }}>
@@ -556,7 +600,10 @@ export function ActiveSourcesOverviewModal({
               {filteredRows.map((row, i) => (
                 <tr key={`${row._originalRowId}-${row._activeSourceName}-${i}`} className="hover:bg-gray-50">
                   <td className={getBodyCls('__active_source', "p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30")} style={getBodySty('__active_source', getColWidth('__active_source'))}>
-                    <div>{highlightText(row._activeSourceName, deferredSearchQuery)}</div>
+                    <div className="flex items-center gap-1">
+                      {highlightText(row._activeSourceName, deferredSearchQuery)}
+                      {showAllStatuses && row._isRetired && <span className="text-xs text-gray-500 font-normal">(retired)</span>}
+                    </div>
                     <div className="text-[10px] text-gray-500 uppercase mt-0.5 tracking-wider">Qty: {row._activeQty}</div>
                   </td>
                   <td className={getBodyCls('__total_sales', "p-2 border whitespace-pre-wrap break-words font-bold text-blue-700 bg-blue-50/30")} style={getBodySty('__total_sales', getColWidth('__total_sales'))}>
