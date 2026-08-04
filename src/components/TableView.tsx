@@ -8,6 +8,7 @@ import { decodeHtmlEntities, parseMultiSource } from "../lib/appUtils";
 import { RowPositionEditor } from "./RowPositionEditor";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
 import { formatSourceNumber } from "../lib/multiSourceHelpers";
+import { RetiredSourcePickerPopup } from "./RetiredSourcePickerPopup";
 
 export const TableView = ({
   activeFilterSaleCol,
@@ -30,6 +31,7 @@ export const TableView = ({
   getImageUrl, toggleModal,
 }: any) => {
   const [containerWidth, setContainerWidth] = React.useState<number | null>(null);
+  const [openRetiredPickerRowId, setOpenRetiredPickerRowId] = React.useState<string | null>(null);
   React.useEffect(() => {
     const parentRef = isSecondary ? secParentRef : primParentRef;
     if (!parentRef?.current) return;
@@ -859,11 +861,13 @@ export const TableView = ({
                                         },
                                       );
 
+                                      const isPickerOpen = openRetiredPickerRowId === row.id;
                                       return (
                                         <td
                                           key={col.key}
                                           {...commonProps}
-                                          className={`p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${hoverClass}`}
+                                          style={{ ...commonProps.style, overflow: isPickerOpen ? "visible" : commonProps.style.overflow, zIndex: isPickerOpen ? 99999 : commonProps.style.zIndex }}
+                                          className={`p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${hoverClass} ${isPickerOpen ? "relative !z-[60]" : ""}`}
                                         >
                                           <div className="flex flex-col gap-1 justify-center">
                                             {remainingSources.map(
@@ -893,18 +897,13 @@ export const TableView = ({
                                     if (col.key === "total_qty") {
                                       const totalSources = parseMultiSource(rawVal);
                                       const { active, retired } = splitActiveRetired(totalSources);
-                                      const autoRevealedRetired = activeFilterSaleCol ? retired.filter((r: any) => {
-                                        const saleSources = parseMultiSource(row[activeFilterSaleCol]);
-                                        return saleSources.some((ss: any) => ss.source === r.source && (parseFloat(ss.qty) || 0) > 0);
-                                      }) : [];
-                                      const hiddenRetiredCount = retired.length - autoRevealedRetired.length;
-                                      const hiddenRetired = retired.filter((r: any) => !autoRevealedRetired.some((a: any) => a.source === r.source));
-
+                                      const isPickerOpen = openRetiredPickerRowId === row.id;
                                       return (
                                         <td
                                           key={col.key}
                                           {...commonProps}
-                                          className={`p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${hoverClass}`}
+                                          style={{ ...commonProps.style, overflow: isPickerOpen ? "visible" : commonProps.style.overflow, zIndex: isPickerOpen ? 99999 : commonProps.style.zIndex }}
+                                          className={`p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${hoverClass} ${isPickerOpen ? "relative !z-[60]" : ""}`}
                                         >
                                           <div className="flex flex-col gap-1 justify-center relative group">
                                             {active.map(
@@ -924,55 +923,39 @@ export const TableView = ({
                                                 </div>
                                               ),
                                             )}
-                                            {autoRevealedRetired.map(
-                                              (s: any, idx: number) => (
-                                                <div
-                                                  key={`ret-auto-${idx}`}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (onOpenRetiredOverview) onOpenRetiredOverview(getRowRetiredSourceNames(row));
-                                                  }}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300 cursor-pointer hover:bg-gray-200 transition-colors`}
-                                                >
-                                                  <span className="opacity-70 text-gray-700">
-                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
-                                                  </span>{" "}
-                                                  <span className="text-gray-700">{s.qty}</span>
-                                                  <span className="ml-auto text-[9px] uppercase tracking-wider bg-gray-200 text-gray-600 px-1 rounded">Retired</span>
-                                                </div>
-                                              ),
-                                            )}
-                                            {hiddenRetired.map(
-                                              (s: any, idx: number) => (
-                                                <div
-                                                  key={`ret-hidden-${idx}`}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (onOpenRetiredOverview) onOpenRetiredOverview(getRowRetiredSourceNames(row));
-                                                  }}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 bg-gray-100 border-gray-300 cursor-pointer hover:bg-gray-200 transition-colors`}
-                                                >
-                                                  <span className="opacity-70 text-gray-700">
-                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
-                                                  </span>{" "}
-                                                  <span className="text-gray-700">{s.qty}</span>
-                                                  <span className="ml-auto text-[9px] uppercase tracking-wider bg-gray-200 text-gray-600 px-1 rounded">Retired</span>
-                                                </div>
-                                              ),
-                                            )}
-
                                             {totalSources.length >= 2 && (
                                               <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
                                                 <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
                                                 <span>{sumActive(totalSources)}</span>
                                               </div>
                                             )}
+                                            {retired.length > 0 && config.showRetiredChipInTotalQty !== false && (
+                                              <div className="relative mt-1">
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenRetiredPickerRowId(openRetiredPickerRowId === row.id ? null : row.id);
+                                                  }}
+                                                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-bold py-0.5 px-2 rounded-full border border-gray-200 flex items-center justify-center gap-1.5 transition-colors"
+                                                >
+                                                  <span>🗄️ {retired.length} retired</span>
+                                                </button>
+                                                {openRetiredPickerRowId === row.id && (
+                                                  <RetiredSourcePickerPopup
+                                                    retiredSources={retired}
+                                                    onClose={() => setOpenRetiredPickerRowId(null)}
+                                                    onDone={(selected) => {
+                                                      setOpenRetiredPickerRowId(null);
+                                                      if (onOpenRetiredOverview) onOpenRetiredOverview(selected);
+                                                    }}
+                                                  />
+                                                )}
+                                              </div>
+                                            )}
                                           </div>
                                         </td>
                                       );
-                                    }
-
-                                    if (col.type === "sale_tracker") {
+                                    } if (col.type === "sale_tracker") {
                                       const totalSources = parseMultiSource(
                                         row.total_qty,
                                       );

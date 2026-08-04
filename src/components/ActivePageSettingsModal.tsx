@@ -332,6 +332,24 @@ export const ActivePageSettingsModal = React.memo(({
           When enabled, typing in one search bar will not clear the text in the other search bar.
         </div>
       </div>
+      
+      <div className="border border-gray-200 rounded-md p-2.5 bg-gray-50 mb-2.5">
+        <label className="flex items-center justify-between gap-2.5 m-0 cursor-pointer">
+          <span className="text-[13px] text-[#37474f] font-bold">Show retired chip in Total Qty</span>
+          <input 
+            type="checkbox" 
+            className="scale-125" 
+            checked={pageConfig?.showRetiredChipInTotalQty !== false} 
+            onChange={e => {
+              const checked = e.target.checked;
+              saveConfig({ showRetiredChipInTotalQty: checked }, false);
+            }} 
+          />
+        </label>
+        <div className="mt-2 text-[11px] text-[#78909c] leading-snug">
+          When enabled, retired sources in the Total Qty column are grouped into a single compact chip.
+        </div>
+      </div>
 
       {pageConfig?.isTrackerPage && (
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 mt-2 mb-4">

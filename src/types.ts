@@ -52,6 +52,7 @@ export interface PageConfig {
   minStockAlert?: number;
   showCopyBoxes?: boolean;
   copyBoxConfig?: GlobalCopyBoxesSettings;
+  showRetiredChipInTotalQty?: boolean;
 }
 
 export interface RowData {
