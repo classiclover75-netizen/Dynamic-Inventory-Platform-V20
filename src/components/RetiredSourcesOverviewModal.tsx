@@ -157,17 +157,17 @@ export function RetiredSourcesOverviewModal({
        if (rawTotal.trim().startsWith("[")) {
          try {
             const totalSources = parseMultiSource(row.total_qty);
+            const ts = totalSources.find((s: any) => s.source === row._retiredSourceName);
+            if (!ts) return "0";
+            
             const saleCols = columns.filter((c) => c.type === "sale_tracker");
-            const remainingSources = totalSources.map((ts: any) => {
-               let totalSaleForSource = 0;
-               saleCols.forEach(sc => {
-                  const saleArr = parseMultiSource(row[sc.key]);
-                  const sSale = saleArr.find((ss:any) => ss.source === ts.source);
-                  if (sSale) totalSaleForSource += parseFloat(String(sSale.qty)) || 0;
-               });
-               return { ...ts, qty: (parseFloat(String(ts.qty)) || 0) - totalSaleForSource };
+            let totalSaleForSource = 0;
+            saleCols.forEach(sc => {
+                const saleArr = parseMultiSource(row[sc.key]);
+                const sSale = saleArr.find((ss:any) => ss.source === row._retiredSourceName);
+                if (sSale) totalSaleForSource += parseFloat(String(sSale.qty)) || 0;
             });
-            return remainingSources.reduce((sum: number, ts: any) => sum + ts.qty, 0).toString();
+            return String((parseFloat(String(ts.qty)) || 0) - totalSaleForSource);
          } catch(e) {
             return "0";
          }
@@ -182,15 +182,11 @@ export function RetiredSourcesOverviewModal({
       if (rawVal.trim().startsWith("[")) {
         try {
           const sources = parseMultiSource(rawVal);
-          if (sources.length === 0) return "0";
-          if (sources.length === 1 && sources[0].source === "Default" && !isRetired(sources[0])) {
-            return String(sources[0].qty);
+          const s = sources.find((ss: any) => ss.source === row._retiredSourceName);
+          if (s) {
+            return String(s.qty);
           }
-          const lines = sources.map((s: any) => `${s.source}: ${s.qty}${isRetired(s) ? ' (Retired)' : ''}`);
-          if (sources.length > 1) {
-             lines.push(`Total: ${sumActive(sources)}`);
-          }
-          return lines.join("\n");
+          return "0";
         } catch(e) {
           return rawVal;
         }
