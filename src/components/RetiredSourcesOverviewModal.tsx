@@ -324,8 +324,8 @@ export function RetiredSourcesOverviewModal({
       });
       }); // missing filter closing
     }
-    return [...result].sort((a, b) => b._totalSales - a._totalSales);
-  }, [flatRows, sourceColumns, deferredSearchQuery, selectedSources]);
+    return sortOverviewRows(result, sortBy, sortDir, columns, '_retiredSourceName');
+  }, [flatRows, sourceColumns, deferredSearchQuery, selectedSources, sortBy, sortDir, columns]);
 
   const handleExport = async () => {
     if (filteredRows.length === 0) {
@@ -460,6 +460,19 @@ export function RetiredSourcesOverviewModal({
       noScroll={true}
     >
       <div className="flex flex-col h-[85vh] p-4">
+        {statusCounts.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar shrink-0">
+            {statusCounts.map(sc => (
+               <div key={sc.source} className="flex-shrink-0 text-xs px-2 py-1 bg-white rounded-full border shadow-sm flex items-center gap-1">
+                 <span className="font-bold">{sc.source}</span>
+                 <span className="text-gray-400">|</span>
+                 <span className="text-gray-600">Retired: {sc.retiredCount}</span>
+                 <span className="text-gray-400">|</span>
+                 <span className="text-gray-600">Active: {sc.activeCount}</span>
+               </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-4 mb-4 shrink-0 items-center justify-between">
            <div className="flex gap-4 items-center">
              <div className="relative" ref={sourceDropdownRef}>
