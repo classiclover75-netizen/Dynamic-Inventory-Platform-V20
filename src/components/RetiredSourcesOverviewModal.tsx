@@ -615,7 +615,7 @@ export function RetiredSourcesOverviewModal({
                   <td className={getBodyCls('__retired_source', "p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30")} style={getBodySty('__retired_source', getColWidth('__retired_source'))}>
                     <div className="flex items-center gap-1">
                       {highlightText(row._retiredSourceName, deferredSearchQuery)}
-                      {showAllStatuses && row._isRetired && <span className="text-xs text-gray-500 font-normal">(retired)</span>}
+                      {showAllStatuses && row._isRetired && <span className="text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">(retired)</span>}
                     </div>
                     <div className="text-[10px] text-gray-500 uppercase mt-0.5 tracking-wider">Qty: {row._retiredQty}</div>
                   </td>
@@ -643,12 +643,19 @@ export function RetiredSourcesOverviewModal({
                                 "none";
                             }}
                           />
-                        ) : (
-                          highlightText(
-                            formatCellDisplay(rawVal),
-                            deferredSearchQuery,
-                          )
-                        )}
+                        ) : (() => {
+                          const strVal = formatCellDisplay(rawVal);
+                          const isRetiredSuffix = c.key === 'total_qty' && typeof strVal === 'string' && strVal.endsWith(' (retired)');
+                          const cleanVal = isRetiredSuffix ? strVal.replace(' (retired)', '') : strVal;
+                          return (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {highlightText(cleanVal, deferredSearchQuery)}
+                              {isRetiredSuffix && (
+                                <span className="text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">(retired)</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                     );
                   })}
