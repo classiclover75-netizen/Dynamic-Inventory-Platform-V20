@@ -38,6 +38,12 @@ export function RetiredSourcesOverviewModal({
   const [sortBy, setSortBy] = useState("Recently Added");
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showAllStatuses, setShowAllStatuses] = useState(false);
+  React.useEffect(() => {
+    if (!showAllStatuses && sortBy === 'Status') {
+      setSortBy('Recently Added');
+    }
+  }, [showAllStatuses, sortBy]);
+
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
@@ -576,7 +582,8 @@ export function RetiredSourcesOverviewModal({
              </label>
              <div className="w-px h-4 bg-gray-300 mx-1"></div>
              <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="border-none bg-transparent outline-none cursor-pointer py-1 pl-2 font-medium text-gray-700">
-               <option value="Recently Added">Recently Added</option>
+                              <option value="Recently Added">Recently Added</option>
+               {showAllStatuses && <option value="Status">Status (Retired first)</option>}
                <option value="Total Sale">Total Sale</option>
                <option value="Total Qty">Total Qty</option>
                <option value="Remaining Qty">Remaining Qty</option>

@@ -60,7 +60,29 @@ export function sortOverviewRows(rows: any[], sortBy: string, sortDir: 'asc' | '
         let valA = 0;
         let valB = 0;
 
-        if (sortBy === 'Total Sale') {
+        if (sortBy === 'Status') {
+            const isRetiredA = !!a._isRetired;
+            const isRetiredB = !!b._isRetired;
+            if (isRetiredA !== isRetiredB) {
+                // desc: retired first (true before false) => if desc and A is retired, A comes first (-1)
+                // if asc: active first (false before true)
+                if (sortDir === 'desc') {
+                    return isRetiredA ? -1 : 1;
+                } else {
+                    return isRetiredA ? 1 : -1;
+                }
+            }
+            // Same status: sort by source name
+            const strA = String(sourceA || '').toLowerCase();
+            const strB = String(sourceB || '').toLowerCase();
+            if (sortDir === 'desc') {
+                // desc: within group, A-Z
+                return strA.localeCompare(strB);
+            } else {
+                // asc: within group, Z-A
+                return strB.localeCompare(strA);
+            }
+        } else if (sortBy === 'Total Sale') {
             valA = a._totalSales || 0;
             valB = b._totalSales || 0;
         } else if (sortBy === 'Total Qty') {
