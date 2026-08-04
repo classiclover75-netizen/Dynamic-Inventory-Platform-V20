@@ -46,6 +46,8 @@ export interface PageConfig {
   isTrackerPage?: boolean;
   retiredOverviewColWidths?: Record<string, number>;
   activeOverviewColWidths?: Record<string, number>;
+  retiredOverviewPinnedCols?: string[];
+  activeOverviewPinnedCols?: string[];
   autoSortBySales?: boolean;
   minStockAlert?: number;
   showCopyBoxes?: boolean;

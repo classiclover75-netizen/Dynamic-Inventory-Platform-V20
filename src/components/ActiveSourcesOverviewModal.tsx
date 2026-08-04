@@ -6,6 +6,7 @@ import { Search, FileSpreadsheet } from 'lucide-react';
 import { buildFlatActiveRows, buildActiveOverview, FlatActiveRow } from '../lib/activeOverviewUtils';
 import { parseMultiSource } from '../lib/appUtils';
 import { isRetired, sumActive } from '../lib/sourceArchiveUtils';
+import { useOverviewColumnPin } from '../hooks/useOverviewColumnPin';
 import { Modal, Button, Input } from './ui';
 import { useToast } from './ToastProvider';
 
@@ -17,8 +18,12 @@ export function ActiveSourcesOverviewModal({
   pageName,
   initialColWidths = {},
   onSaveColWidths,
-  initialSelectedSources = null
+  initialSelectedSources = null,
+  initialPinnedCols = [],
+  onSavePinnedCols
 }: {
+  initialPinnedCols?: string[];
+  onSavePinnedCols?: (cols: string[]) => void;
   isOpen: boolean;
   onClose: () => void;
   rows: any[];
@@ -372,8 +377,57 @@ export function ActiveSourcesOverviewModal({
     if (id === '__total_sales') return 120;
     return 150;
   };
+  const { pinnedCols, togglePin, pinnedOffsets } = useOverviewColumnPin(initialPinnedCols, onSavePinnedCols, getColWidth, colWidths);
   const totalWidth = colIds.reduce((sum, id) => sum + getColWidth(id), 0);
 
+
+  const renderPinBtn = (colId: string) => {
+    const isPinned = pinnedCols.includes(colId);
+    return (
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          togglePin(colId);
+        }}
+        className={`p-0 m-0 ml-1 bg-transparent border-0 cursor-pointer transition-opacity ${isPinned ? 'opacity-100 hover:opacity-80' : 'opacity-40 hover:opacity-100 grayscale-[0.5]'}`}
+        title={isPinned ? "Unpin column (unfreeze)" : "Pin column (freeze)"}
+      >
+        📌
+      </button>
+    );
+  };
+  const getHeaderCls = (colId: string, baseClass: string) => {
+    const isPinned = pinnedCols.includes(colId);
+    const isLastPinned = isPinned && pinnedCols[pinnedCols.length - 1] === colId;
+    let pinnedBg = '';
+    if (isPinned) {
+      if (colId === '__active_source') pinnedBg = '!bg-purple-100';
+      else if (colId === '__total_sales') pinnedBg = '!bg-blue-100';
+      else pinnedBg = '!bg-gray-200';
+    }
+    return `${baseClass} ${isPinned ? 'sticky z-20 ' + pinnedBg : ''} ${isLastPinned ? 'shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] border-r-gray-400' : ''}`;
+  };
+  const getHeaderSty = (colId: string, width: number) => {
+    const isPinned = pinnedCols.includes(colId);
+    const offset = pinnedOffsets[colId] ?? 0;
+    return { width: width + 'px', minWidth: width + 'px', ...(isPinned ? { left: offset + 'px' } : {}) };
+  };
+  const getBodyCls = (colId: string, baseClass: string) => {
+    const isPinned = pinnedCols.includes(colId);
+    const isLastPinned = isPinned && pinnedCols[pinnedCols.length - 1] === colId;
+    let pinnedBg = '';
+    if (isPinned) {
+      if (colId === '__active_source') pinnedBg = '!bg-purple-100';
+      else if (colId === '__total_sales') pinnedBg = '!bg-blue-100';
+      else pinnedBg = '!bg-gray-100';
+    }
+    return `${baseClass} ${isPinned ? 'sticky z-10 ' + pinnedBg : ''} ${isLastPinned ? 'shadow-[4px_0_10px_-4px_rgba(0,0,0,0.15)] border-r-gray-400' : ''}`;
+  };
+  const getBodySty = (colId: string, width: number) => {
+    const isPinned = pinnedCols.includes(colId);
+    const offset = pinnedOffsets[colId] ?? 0;
+    return { width: width + 'px', minWidth: width + 'px', ...(isPinned ? { left: offset + 'px' } : {}) };
+  };
   return (
     <Modal 
       isOpen={isOpen} 
@@ -484,19 +538,19 @@ export function ActiveSourcesOverviewModal({
           <table className="w-max table-fixed text-sm border-collapse" style={{ width: totalWidth + 'px' }}>
             <thead className="sticky top-0 bg-gray-100 z-10 shadow-sm">
               <tr>
-                <th className="p-2 border text-left bg-purple-50 text-purple-800 relative" style={{ width: getColWidth('__active_source') + 'px', minWidth: getColWidth('__active_source') + 'px' }}>
-                  <div className="flex items-center gap-1">📦 Active Source</div>
+                <th className={getHeaderCls('__active_source', "p-2 border text-left bg-purple-50 text-purple-800 relative")} style={getHeaderSty('__active_source', getColWidth('__active_source'))}>
+                  <div className="flex items-center justify-between w-full"><div className="flex items-center gap-1">📦 Active Source</div>{renderPinBtn('__active_source')}</div>
                   <div onMouseDown={(e) => startResize(e, "__active_source")} onDoubleClick={() => resetCol("__active_source")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                 </th>
-                <th className="p-2 border text-left bg-blue-50 text-blue-800 relative" style={{ width: getColWidth('__total_sales') + 'px', minWidth: getColWidth('__total_sales') + 'px' }}>
-                  <div className="flex items-center gap-1">📈 Total Sales</div>
+                <th className={getHeaderCls('__total_sales', "p-2 border text-left bg-blue-50 text-blue-800 relative")} style={getHeaderSty('__total_sales', getColWidth('__total_sales'))}>
+                  <div className="flex items-center justify-between w-full"><div className="flex items-center gap-1">📈 Total Sales</div>{renderPinBtn('__total_sales')}</div>
                   <div onMouseDown={(e) => startResize(e, "__total_sales")} onDoubleClick={() => resetCol("__total_sales")} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                 </th>
                 {sourceColumns.map((c, i) => (
-                  <th key={c.key} className="p-2 border text-left relative" style={{ width: getColWidth(c.key) + 'px', minWidth: getColWidth(c.key) + 'px' }}>
-                    <div className="flex items-center gap-1">
+                  <th key={c.key} className={getHeaderCls(c.key, "p-2 border text-left relative")} style={getHeaderSty(c.key, getColWidth(c.key))}>
+                    <div className="flex items-center justify-between w-full"><div className="flex items-center gap-1">
                       {i + 1}. {c.name} {c.locked && "🔒"}
-                    </div>
+                    </div>{renderPinBtn(c.key)}</div>
                     <div onMouseDown={(e) => startResize(e, c.key)} onDoubleClick={() => resetCol(c.key)} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize select-none hover:bg-blue-400/60" />
                   </th>
                 ))}
@@ -505,11 +559,11 @@ export function ActiveSourcesOverviewModal({
             <tbody>
               {filteredRows.map((row, i) => (
                 <tr key={`${row._originalRowId}-${row._activeSourceName}-${i}`} className="hover:bg-gray-50">
-                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30" style={{ width: getColWidth('__active_source') + 'px', minWidth: getColWidth('__active_source') + 'px' }}>
+                  <td className={getBodyCls('__active_source', "p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30")} style={getBodySty('__active_source', getColWidth('__active_source'))}>
                     <div>{highlightText(row._activeSourceName, deferredSearchQuery)}</div>
                     <div className="text-[10px] text-gray-500 uppercase mt-0.5 tracking-wider">Qty: {row._activeQty}</div>
                   </td>
-                  <td className="p-2 border whitespace-pre-wrap break-words font-bold text-blue-700 bg-blue-50/30" style={{ width: getColWidth('__total_sales') + 'px', minWidth: getColWidth('__total_sales') + 'px' }}>
+                  <td className={getBodyCls('__total_sales', "p-2 border whitespace-pre-wrap break-words font-bold text-blue-700 bg-blue-50/30")} style={getBodySty('__total_sales', getColWidth('__total_sales'))}>
                     {highlightText(String(row._totalSales), deferredSearchQuery)}
                   </td>
                   

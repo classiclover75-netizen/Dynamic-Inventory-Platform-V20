@@ -2537,6 +2537,8 @@ function AppContent() {
         columns={activeConfig?.columns || []}
         initialColWidths={activeConfig?.retiredOverviewColWidths || {}}
         onSaveColWidths={(w) => handleSaveActivePageSettings({ ...activeConfig, retiredOverviewColWidths: w } as any, false)}
+        initialPinnedCols={activeConfig?.retiredOverviewPinnedCols || []}
+        onSavePinnedCols={(c) => handleSaveActivePageSettings({ ...activeConfig, retiredOverviewPinnedCols: c } as any, false)}
       />
       <ActiveSourcesOverviewModal
         pageName={state.activePage}
@@ -2549,6 +2551,8 @@ function AppContent() {
         columns={activeConfig?.columns || []}
         initialColWidths={activeConfig?.activeOverviewColWidths || {}}
         onSaveColWidths={(w) => handleSaveActivePageSettings({ ...activeConfig, activeOverviewColWidths: w } as any, false)}
+        initialPinnedCols={activeConfig?.activeOverviewPinnedCols || []}
+        onSavePinnedCols={(c) => handleSaveActivePageSettings({ ...activeConfig, activeOverviewPinnedCols: c } as any, false)}
       />
 
       {/* ConfirmationModal is now global */}
