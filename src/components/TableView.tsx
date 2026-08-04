@@ -25,6 +25,7 @@ export const TableView = ({
   handleClosePopup, handleDragEnd, handleSaveColumnWidth, handleSaveInlineEdit,
   onTogglePinColumn,
   onOpenRetiredOverview,
+  onOpenActiveSourceOverview,
   handleTableMouseOver, handleTableMouseOut,
   getImageUrl, toggleModal,
 }: any) => {
@@ -910,7 +911,11 @@ export const TableView = ({
                                               (s: any, idx: number) => (
                                                 <div
                                                   key={idx}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color}`}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onOpenActiveSourceOverview) onOpenActiveSourceOverview([s.source]);
+                                                  }}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color} cursor-pointer hover:opacity-80 transition-opacity`}
                                                 >
                                                   <span className="opacity-70">
                                                     <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:

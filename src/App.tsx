@@ -1,4 +1,5 @@
 import { RetiredSourcesOverviewModal } from "./components/RetiredSourcesOverviewModal";
+import { ActiveSourcesOverviewModal } from "./components/ActiveSourcesOverviewModal";
 import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from "react";
 
 import { createPortal } from "react-dom";
@@ -444,6 +445,8 @@ function AppContent() {
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isRetiredSourcesOverviewOpen, setRetiredSourcesOverviewOpen] = useState(false);
   const [retiredOverviewFilterSources, setRetiredOverviewFilterSources] = useState<string[] | null>(null);
+  const [isActiveSourcesOverviewOpen, setActiveSourcesOverviewOpen] = useState(false);
+  const [activeOverviewFilterSources, setActiveOverviewFilterSources] = useState<string[] | null>(null);
   const [isRetiredOverviewStandalone, setIsRetiredOverviewStandalone] = useState(false);
   const [isArchiveDeleteModalOpen, setIsArchiveDeleteModalOpen] =
     useState(false);
@@ -2164,6 +2167,10 @@ function AppContent() {
               setIsRetiredOverviewStandalone(true);
               setRetiredSourcesOverviewOpen(true);
             }}
+            onOpenActiveSourceOverview={(sources?: string[]) => {
+              setActiveOverviewFilterSources(sources || null);
+              setActiveSourcesOverviewOpen(true);
+            }}
             handleSaveColumnWidth={handleSaveColumnWidth}
             handleSaveInlineEdit={handleSaveInlineEdit}
             handleTableMouseOver={handleTableMouseOver}
@@ -2530,6 +2537,18 @@ function AppContent() {
         columns={activeConfig?.columns || []}
         initialColWidths={activeConfig?.retiredOverviewColWidths || {}}
         onSaveColWidths={(w) => handleSaveActivePageSettings({ ...activeConfig, retiredOverviewColWidths: w } as any, false)}
+      />
+      <ActiveSourcesOverviewModal
+        pageName={state.activePage}
+        isOpen={isActiveSourcesOverviewOpen}
+        initialSelectedSources={activeOverviewFilterSources}
+        onClose={() => {
+          setActiveSourcesOverviewOpen(false);
+        }}
+        rows={activeRows}
+        columns={activeConfig?.columns || []}
+        initialColWidths={activeConfig?.activeOverviewColWidths || {}}
+        onSaveColWidths={(w) => handleSaveActivePageSettings({ ...activeConfig, activeOverviewColWidths: w } as any, false)}
       />
 
       {/* ConfirmationModal is now global */}
