@@ -377,7 +377,7 @@ export function ActiveSourcesOverviewModal({
     if (id === '__total_sales') return 120;
     return 150;
   };
-  const { pinnedCols, togglePin, pinnedOffsets } = useOverviewColumnPin(initialPinnedCols, onSavePinnedCols, getColWidth, colWidths);
+  const { pinnedCols, togglePin, pinnedOffsets, lastPinnedColId } = useOverviewColumnPin(initialPinnedCols, onSavePinnedCols, getColWidth, colWidths, isOpen, colIds);
   const totalWidth = colIds.reduce((sum, id) => sum + getColWidth(id), 0);
 
 
@@ -398,7 +398,7 @@ export function ActiveSourcesOverviewModal({
   };
   const getHeaderCls = (colId: string, baseClass: string) => {
     const isPinned = pinnedCols.includes(colId);
-    const isLastPinned = isPinned && pinnedCols[pinnedCols.length - 1] === colId;
+    const isLastPinned = isPinned && lastPinnedColId === colId;
     let pinnedBg = '';
     if (isPinned) {
       if (colId === '__active_source') pinnedBg = '!bg-purple-100';
@@ -414,7 +414,7 @@ export function ActiveSourcesOverviewModal({
   };
   const getBodyCls = (colId: string, baseClass: string) => {
     const isPinned = pinnedCols.includes(colId);
-    const isLastPinned = isPinned && pinnedCols[pinnedCols.length - 1] === colId;
+    const isLastPinned = isPinned && lastPinnedColId === colId;
     let pinnedBg = '';
     if (isPinned) {
       if (colId === '__active_source') pinnedBg = '!bg-purple-100';
