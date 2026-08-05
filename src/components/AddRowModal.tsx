@@ -21,6 +21,7 @@ import { GripVertical, ArrowDownAZ } from "lucide-react";
 import { RichDropdownSelect } from "./RichDropdownSelect";
 import { SourceAutocompleteInput, useSourceSuggestions } from "./SourceAutocompleteInput";
 import { RetiredSourcesModal } from "./RetiredSourcesModal";
+import { generateUniqueSourceColor, collectUsedSourceColors, getSourceChipStyle } from '../lib/sourceColorUtils';
 
 const RichTextEditor = ({
   value,
@@ -247,7 +248,7 @@ export const AddRowModal = React.memo(
     const [pointer, setPointer] = useState(0);
     const isUndoRedoRef = useRef(false);
     const [newSourceInputs, setNewSourceInputs] = useState<
-      Record<number, { source: string; qty: string }>
+      Record<number, { source: string; qty: string; hex?: string }>
     >({});
     
     const sourceSuggestions = useSourceSuggestions(allRows || [], blocks);
@@ -1137,35 +1138,60 @@ export const AddRowModal = React.memo(
                                       })
                                     }
                                   />
+                                  <Input
+                                    type="text"
+                                    placeholder="Hex"
+                                    className="w-[90px] shrink-0 h-8 text-[14px] px-2 font-mono"
+                                    value={newSourceInput.hex || ""}
+                                    onChange={(e) =>
+                                      setNewSourceInputs({
+                                        ...newSourceInputs,
+                                        [i]: {
+                                          ...newSourceInput,
+                                          hex: e.target.value,
+                                        },
+                                      })
+                                    }
+                                  />
                                   <Button
                                     type="button"
                                     variant="green"
                                     className="h-7 text-[10px] px-2 py-0 shrink-0"
                                     onClick={() => {
                                       if (newSourceInput.source) {
-                                        let existingColor = null;
-                                        if (allRows) {
-                                          for (const r of allRows) {
-                                            try {
-                                              const val = r[col.key]; // col.key is the active column being edited
-                                              if (!val) continue;
-                                              const arr = typeof val === 'string' ? JSON.parse(val) : val;
-                                              if (Array.isArray(arr)) {
-                                                const match = arr.find((item: any) => item.source?.trim().toLowerCase() === newSourceInput.source.trim().toLowerCase());
-                                                if (match && match.color) {
-                                                  existingColor = match.color;
-                                                  break;
+                                        let finalColor = "";
+                                        const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
+                                        if (newSourceInput.hex && hexRegex.test(newSourceInput.hex.trim())) {
+                                          finalColor = newSourceInput.hex.trim().toUpperCase();
+                                        } else {
+                                          let existingColor = null;
+                                          if (allRows) {
+                                            for (const r of allRows) {
+                                              try {
+                                                const relevantCols = columns.filter((c: any) => c.type === 'multi_source' || c.type === 'sale_tracker' || c.key === 'total_qty');
+                                                for (const checkCol of relevantCols) {
+                                                  const val = r[checkCol.key];
+                                                  if (!val) continue;
+                                                  const arr = typeof val === 'string' ? JSON.parse(val) : val;
+                                                  if (Array.isArray(arr)) {
+                                                    const match = arr.find((item: any) => item.source?.trim().toLowerCase() === newSourceInput.source.trim().toLowerCase());
+                                                    if (match && match.color) {
+                                                      existingColor = match.color;
+                                                      break;
+                                                    }
+                                                  }
                                                 }
-                                              }
-                                            } catch(e) {} // ignore parsing errors for flat values
+                                              } catch(e) {}
+                                              if (existingColor) break;
+                                            }
+                                          }
+                                          if (existingColor) {
+                                            finalColor = existingColor;
+                                          } else {
+                                            finalColor = generateUniqueSourceColor(collectUsedSourceColors(allRows || [], columns));
                                           }
                                         }
-
-                                        const usedColors = currentSources.map((item: any) => item.color);
-                                        const availableColors = RANDOM_COLORS.filter(c => !usedColors.includes(c));
-                                        const randomColor = availableColors.length > 0 ? availableColors[Math.floor(Math.random() * availableColors.length)] : RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)];
-                                        const newColor = existingColor || randomColor;
-                                        
+                                        const newColor = finalColor;
                                         const updated = [
                                           ...currentSources,
                                           {
@@ -1196,64 +1222,39 @@ export const AddRowModal = React.memo(
                           })()
                         ) : col.type === "sale_tracker" ? (
                           (() => {
-                            const totalSources = parseMultiSource(
-                              block["total_qty"],
-                            );
-                            const saleSources = parseMultiSource(
-                              block[col.key],
-                            );
+                            const totalSources = parseMultiSource(block.total_qty);
+                            const saleSources = parseMultiSource(block[col.key]);
                             return (
                               <div className="border border-gray-200 bg-gray-50 p-2 rounded flex flex-col h-full min-h-[100px]">
                                 <div className="flex flex-col gap-2">
-                                  {totalSources.map((ts: any, idx: number) => {
-                                    const saleEntry = saleSources.find(
-                                      (s: any) => s.source === ts.source,
-                                    );
-                                    const saleQty = saleEntry
-                                      ? saleEntry.qty
-                                      : "";
+                                  {totalSources.map((ts: any, tIdx: number) => {
+                                    const existingSale = saleSources.find((s: any) => s.source === ts.source);
+                                    const saleQty = existingSale ? existingSale.qty : "";
                                     return (
-                                      <div
-                                        key={idx}
-                                        className="flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-1 rounded shadow-sm border border-gray-100"
-                                      >
-                                        <span
-                                          className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-[2] min-w-[100px] break-words whitespace-normal ${ts.color}`}
-                                        >
+                                      <div key={tIdx} className="flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-1 rounded shadow-sm border border-gray-100">
+                                        <span className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-[2] min-w-[100px] break-words whitespace-normal ${ts.color || ''}`}>
                                           {ts.source}
                                         </span>
                                         <Input
                                           type="number"
                                           onFocus={(e) => e.target.select()}
-                                          onWheel={(e) =>
-                                            e.currentTarget.blur()
-                                          }
+                                          onWheel={(e) => e.currentTarget.blur()}
                                           className="w-[70px] shrink-0 h-8 text-[14px] px-1 text-right text-blue-800 font-bold ml-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           value={saleQty}
                                           placeholder="Qty"
                                           onChange={(e) => {
-                                            const copy = [...saleSources];
-                                            const existingIdx = copy.findIndex(
-                                              (s: any) =>
-                                                s.source === ts.source,
-                                            );
+                                            const newSaleSources = [...saleSources];
+                                            const existingIdx = newSaleSources.findIndex((s: any) => s.source === ts.source);
                                             if (existingIdx >= 0) {
-                                              copy[existingIdx].qty =
-                                                parseFloat(e.target.value) || 0;
+                                              newSaleSources[existingIdx].qty = parseFloat(e.target.value) || 0;
                                             } else {
-                                              copy.push({
+                                              newSaleSources.push({
                                                 source: ts.source,
-                                                qty:
-                                                  parseFloat(e.target.value) ||
-                                                  0,
-                                                color: ts.color,
+                                                qty: parseFloat(e.target.value) || 0,
+                                                color: ts.color
                                               });
                                             }
-                                            handleUpdateField(
-                                              i,
-                                              col.key,
-                                              JSON.stringify(copy),
-                                            );
+                                            handleUpdateField(i, col.key, JSON.stringify(newSaleSources));
                                           }}
                                         />
                                       </div>
@@ -1261,8 +1262,7 @@ export const AddRowModal = React.memo(
                                   })}
                                   {totalSources.length === 0 && (
                                     <div className="text-[14px] text-gray-500 italic p-1">
-                                      No sources added yet. Add to Total Qty
-                                      first.
+                                      No sources added yet. Add to Total Qty first.
                                     </div>
                                   )}
                                 </div>
@@ -1270,65 +1270,32 @@ export const AddRowModal = React.memo(
                             );
                           })()
                         ) : col.type === "multi_text" ? (
-                          <div
-                            className={
-                              isReadOnly
-                                ? "pointer-events-none opacity-70 bg-gray-50"
-                                : ""
-                            }
-                          >
-                            <RichTextEditor
-                              className="w-full min-h-[90px]"
-                              placeholder="One value per line (use Shift+Enter for new line)"
-                              value={
-                                Array.isArray(block[col.key])
-                                  ? block[col.key].join("<br>")
-                                  : block[col.key] || ""
-                              }
-                              onChange={(val) =>
-                                handleUpdateField(
-                                  i,
-                                  col.key,
-                                  val.split(/<br\s*\/?>/i),
-                                )
-                              }
+                          <div className={isReadOnly ? "pointer-events-none opacity-70 bg-gray-50" : ""}>
+                            <textarea
+                              className="w-full min-h-[90px] border border-gray-200 rounded p-2"
+                              placeholder="One value per line"
+                              value={Array.isArray(block[col.key]) ? block[col.key].join("\n") : block[col.key] || ""}
+                              onChange={(e) => handleUpdateField(i, col.key, e.target.value.split('\n'))}
                             />
                           </div>
                         ) : col.type === "text_with_copy_button" ? (
-                          <div
-                            className={`flex flex-col gap-1 ${isReadOnly ? "pointer-events-none opacity-70 bg-gray-50" : ""}`}
-                          >
-                            {(Array.isArray(block[col.key]) &&
-                            block[col.key].length > 0
-                              ? block[col.key]
-                              : [""]
-                            ).map((val: string, idx: number, arr: string[]) => {
-                              const isCopyDisabled = val.startsWith("!");
+                          <div className={`flex flex-col gap-1 ${isReadOnly ? "pointer-events-none opacity-70 bg-gray-50" : ""}`}>
+                            {(Array.isArray(block[col.key]) && block[col.key].length > 0 ? block[col.key] : [""]).map((item: string, idx: number, arr: string[]) => {
+                              const isHidden = item.startsWith("!");
                               return (
-                                <div
-                                  key={idx}
-                                  className="flex items-center gap-1.5"
-                                >
+                                <div key={idx} className="flex items-center gap-1.5">
                                   <div className="flex-1 relative">
-                                    <RichTextEditor
-                                      value={
-                                        isCopyDisabled ? val.slice(1) : val
-                                      }
+                                    <Input
+                                      value={isHidden ? item.slice(1) : item}
                                       placeholder={`Item ${idx + 1}`}
-                                      className={
-                                        isCopyDisabled
-                                          ? "bg-gray-50 text-gray-400 italic"
-                                          : ""
-                                      }
-                                      onChange={(newVal) => {
+                                      className={isHidden ? "bg-gray-50 text-gray-400 italic" : ""}
+                                      onChange={(e) => {
                                         const newArr = [...arr];
-                                        newArr[idx] = isCopyDisabled
-                                          ? "!" + newVal
-                                          : newVal;
+                                        newArr[idx] = isHidden ? "!" + e.target.value : e.target.value;
                                         handleUpdateField(i, col.key, newArr);
                                       }}
                                     />
-                                    {isCopyDisabled && (
+                                    {isHidden && (
                                       <div className="absolute right-2 top-1.5 text-[9px] font-bold text-red-400 uppercase pointer-events-none">
                                         Copy Hidden
                                       </div>
@@ -1339,19 +1306,13 @@ export const AddRowModal = React.memo(
                                       type="button"
                                       onClick={() => {
                                         const newArr = [...arr];
-                                        newArr[idx] = isCopyDisabled
-                                          ? val.slice(1)
-                                          : "!" + val;
+                                        newArr[idx] = isHidden ? item.slice(1) : "!" + item;
                                         handleUpdateField(i, col.key, newArr);
                                       }}
-                                      className={`p-1.5 rounded border transition-all cursor-pointer ${isCopyDisabled ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"}`}
-                                      title={
-                                        isCopyDisabled
-                                          ? "Show Copy Button"
-                                          : "Hide Copy Button"
-                                      }
+                                      className={`p-1.5 rounded border transition-all cursor-pointer ${isHidden ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"}`}
+                                      title={isHidden ? "Show Copy Button" : "Hide Copy Button"}
                                     >
-                                      <Copy size={16} />
+                                      👁️
                                     </button>
                                     <button
                                       type="button"
@@ -1359,16 +1320,14 @@ export const AddRowModal = React.memo(
                                         if (arr.length === 1) {
                                           handleUpdateField(i, col.key, [""]);
                                         } else {
-                                          const newArr = arr.filter(
-                                            (_, k) => k !== idx,
-                                          );
+                                          const newArr = arr.filter((_, q) => q !== idx);
                                           handleUpdateField(i, col.key, newArr);
                                         }
                                       }}
                                       className="p-1.5 bg-red-50 text-red-500 rounded border border-red-100 hover:bg-red-100 transition-all cursor-pointer"
                                       title="Delete this box"
                                     >
-                                      <X size={16} />
+                                      ❌
                                     </button>
                                   </div>
                                 </div>
@@ -1378,12 +1337,7 @@ export const AddRowModal = React.memo(
                               type="button"
                               className="mt-1 border border-dashed border-blue-300 text-blue-700 bg-blue-50 rounded text-xs font-bold py-1 px-2 w-fit cursor-pointer"
                               onClick={() => {
-                                const newArr = [
-                                  ...(Array.isArray(block[col.key])
-                                    ? block[col.key]
-                                    : [""]),
-                                  "",
-                                ];
+                                const newArr = [...(Array.isArray(block[col.key]) ? block[col.key] : [""]), ""];
                                 handleUpdateField(i, col.key, newArr);
                               }}
                             >
@@ -1392,259 +1346,43 @@ export const AddRowModal = React.memo(
                           </div>
                         ) : col.type === "image" ? (
                           <div className="border border-gray-200 rounded p-2 bg-white">
-                            <div className="flex items-center gap-4 mb-2">
-                              <label className="flex items-center gap-1 text-xs cursor-pointer font-medium text-gray-700">
-                                <input
-                                  type="radio"
-                                  name={`mode_${i}_${col.key}`}
-                                  checked={
-                                    (imageModes[`${i}_${col.key}`] || "url") ===
-                                    "url"
-                                  }
-                                  onChange={() =>
-                                    setImageModes((prev) => ({
-                                      ...prev,
-                                      [`${i}_${col.key}`]: "url",
-                                    }))
-                                  }
-                                  className="accent-blue-500"
-                                />
-                                URL
-                              </label>
-                              <label className="flex items-center gap-1 text-xs cursor-pointer font-medium text-gray-700">
-                                <input
-                                  type="radio"
-                                  name={`mode_${i}_${col.key}`}
-                                  checked={
-                                    imageModes[`${i}_${col.key}`] === "file"
-                                  }
-                                  onChange={() =>
-                                    setImageModes((prev) => ({
-                                      ...prev,
-                                      [`${i}_${col.key}`]: "file",
-                                    }))
-                                  }
-                                  className="accent-blue-500"
-                                />
-                                File
-                              </label>
-                            </div>
-                            {(imageModes[`${i}_${col.key}`] || "url") ===
-                            "url" ? (
-                              <div className="flex flex-col gap-1 w-full">
-                                <Input
-                                  placeholder="https://example.com/image.jpg"
-                                  value={
-                                    typeof block[col.key] === "object"
-                                      ? block[col.key].data
-                                      : block[col.key] || ""
-                                  }
-                                  onChange={async (e) => {
-                                    const val = e.target.value;
+                            <div className="flex flex-col gap-1 w-full">
+                              <Input
+                                placeholder="https://example.com/image.jpg"
+                                value={typeof block[col.key] === "object" ? block[col.key].data : block[col.key] || ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val.startsWith("http")) {
+                                    handleUpdateField(i, col.key, { data: val, rawSize: 0, compressedSize: 0 });
+                                  } else {
                                     handleUpdateField(i, col.key, val);
-                                    
-                                    const key = `${i}_${col.key}`;
-                                    currentUrlRef.current[key] = val;
-                                    
-                                    if (urlTimeoutsRef.current[key]) {
-                                      clearTimeout(urlTimeoutsRef.current[key]);
-                                    }
-                                    
-                                    if (val.startsWith("http") && val.length > 10) {
-                                      setUrlSizes(prev => ({ ...prev, [key]: { loading: true, size: null, error: false } }));
-                                      urlTimeoutsRef.current[key] = setTimeout(async () => {
-                                        try {
-                                          const res = await fetch(`/api/url-image-size?url=${encodeURIComponent(val)}`);
-                                          let data: any = {}; try { data = await res.json(); } catch(e) {}
-                                          if (currentUrlRef.current[key] !== val) return;
-                                          
-                                          if (data.ok && typeof data.sizeBytes === 'number') {
-                                            setUrlSizes(prev => ({ ...prev, [key]: { loading: false, size: data.sizeBytes, error: false } }));
-                                            handleUpdateField(i, col.key, {
-                                              data: val,
-                                              rawSize: data.sizeBytes,
-                                              compressedSize: data.sizeBytes,
-                                            });
-                                          } else {
-                                            setUrlSizes(prev => ({ ...prev, [key]: { loading: false, size: null, error: true } }));
-                                            handleUpdateField(i, col.key, {
-                                              data: val,
-                                              rawSize: 0,
-                                              compressedSize: 0,
-                                            });
-                                          }
-                                        } catch (err) {
-                                          if (currentUrlRef.current[key] !== val) return;
-                                          setUrlSizes(prev => ({ ...prev, [key]: { loading: false, size: null, error: true } }));
-                                          handleUpdateField(i, col.key, {
-                                            data: val,
-                                            rawSize: 0,
-                                            compressedSize: 0,
-                                          });
-                                        }
-                                      }, 600);
-                                    } else {
-                                      setUrlSizes(prev => {
-                                        const next = { ...prev };
-                                        delete next[key];
-                                        return next;
-                                      });
-                                    }
-                                  }}
-                                />
-                                {urlSizes[`${i}_${col.key}`] && (
-                                  <div className="text-[10px] ml-1">
-                                    {urlSizes[`${i}_${col.key}`].loading ? (
-                                      <span className="text-gray-500">Checking size...</span>
-                                    ) : urlSizes[`${i}_${col.key}`].error ? (
-                                      <span className="text-red-500">Couldn't determine size</span>
-                                    ) : (
-                                      <span className="text-blue-600">
-                                        Image size: {urlSizes[`${i}_${col.key}`].size! > 1024 * 1024 ? (urlSizes[`${i}_${col.key}`].size! / (1024 * 1024)).toFixed(2) + " MB" : Math.round(urlSizes[`${i}_${col.key}`].size! / 1024) + " KB"}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex flex-col gap-2">
-                                <input
-                                  type="file"
-                                  id={`file-upload-${i}-${col.key}`}
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      const rawSize = file.size;
-                                      const reader = new FileReader();
-                                      reader.onloadend = async () => {
-                                        const compressed = await compressImage(
-                                          reader.result as string,
-                                        );
-                                        handleUpdateField(i, col.key, {
-                                          data: compressed.data,
-                                          rawSize: rawSize,
-                                          compressedSize: compressed.size,
-                                        });
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                  }}
-                                />
-                                <label
-                                  htmlFor={`file-upload-${i}-${col.key}`}
-                                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#217346] hover:bg-[#1a5c38] text-white text-xs font-bold rounded cursor-pointer transition-colors w-max"
-                                >
-                                  📤 Upload Image
-                                </label>
-                                {block[col.key] &&
-                                  (typeof block[col.key] === "object"
-                                    ? block[col.key].data
-                                    : block[col.key]
-                                  ).startsWith("data:image") && (
-                                    <div className="text-[10px] text-gray-500 italic truncate max-w-[200px]">
-                                      Image selected successfully
-                                    </div>
-                                  )}
-                              </div>
-                            )}
-                            {block[col.key] && (
-                              <div className="mt-2 flex items-center gap-3 border border-gray-100 rounded p-1.5 bg-gray-50 w-fit relative">
-                                <img
-                                  src={getImageUrl(block[col.key])}
-                                  alt="Preview"
-                                  className="w-[60px] h-[60px] object-cover rounded border border-gray-200"
-                                  referrerPolicy="no-referrer"
-                                />
-                                <button
-                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 border-0 cursor-pointer"
-                                  onClick={() => {
-                                    setConfirmationModal({
-                                      isOpen: true,
-                                      title: "Confirm Image Deletion",
-                                      message:
-                                        "Are you sure you want to delete this image?",
-                                      onConfirm: () => {
-                                        const newBlock = { ...block };
-                                        newBlock[col.key] = "";
-                                        setBlocks(
-                                          blocks.map((b, i) =>
-                                            i === blocks.indexOf(block)
-                                              ? newBlock
-                                              : b,
-                                          ),
-                                        );
-                                      },
-                                    });
-                                  }}
-                                >
-                                  <X size={12} />
-                                </button>
-                                <div className="flex flex-col">
-                                  <div className="text-[10px] text-gray-500 font-bold uppercase">
-                                    Preview
-                                  </div>
-                                  {typeof block[col.key] === "object" && (
-                                    <div className="text-[9px] text-gray-400 leading-tight">
-                                      Raw: {formatSize(block[col.key].rawSize)}
-                                      <br />
-                                      Comp:{" "}
-                                      {formatSize(
-                                        block[col.key].compressedSize,
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ) : col.type === "dropdown" ? (
-                          <div className={isReadOnly ? "pointer-events-none opacity-70" : ""}>
-                            <RichDropdownSelect
-                              value={block[col.key] || ""}
-                              onChange={(val) => handleUpdateField(i, col.key, val)}
-                              options={col.options || []}
-                              disabled={isReadOnly}
-                              placeholder={`Select ${col.name}`}
-                            />
-                          </div>
-                        ) : col.type === "text" ? (
-                          <div
-                            className={
-                              isReadOnly
-                                ? "pointer-events-none opacity-70 bg-gray-50"
-                                : ""
-                            }
-                          >
-                            <RichTextEditor
-                              placeholder={`Enter ${col.name}`}
-                              value={block[col.key] || ""}
-                              onChange={(val) =>
-                                handleUpdateField(i, col.key, val)
-                              }
-                            />
+                                  }
+                                }}
+                              />
+                            </div>
                           </div>
                         ) : (
-                          <Input
-                            type={
-                              col.type === "number"
-                                ? "number"
-                                : col.type === "date"
-                                  ? "date"
-                                  : "text"
-                            }
-                            onWheel={(e) =>
-                              col.type === "number" && e.currentTarget.blur()
-                            }
-                            placeholder={`Enter ${col.name}`}
-                            value={block[col.key] || ""}
-                            onChange={(e) =>
-                              handleUpdateField(i, col.key, e.target.value)
-                            }
-                            disabled={isReadOnly}
-                            className={`${isReadOnly ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""} ${col.type === "number" ? "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" : ""}`}
-                          />
+                          <div className="relative">
+                            {col.type === "number" ? (
+                              <Input
+                                type="number"
+                                onFocus={(e) => e.target.select()}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                className={`w-full ${isReadOnly ? "bg-gray-100 text-gray-500" : ""}`}
+                                value={block[col.key] || ""}
+                                onChange={(e) => handleUpdateField(i, col.key, e.target.value)}
+                                readOnly={isReadOnly}
+                              />
+                            ) : (
+                              <Input
+                                type="text"
+                                className={`w-full ${isReadOnly ? "bg-gray-100 text-gray-500" : ""}`}
+                                value={block[col.key] || ""}
+                                onChange={(e) => handleUpdateField(i, col.key, e.target.value)}
+                                readOnly={isReadOnly}
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -1654,68 +1392,12 @@ export const AddRowModal = React.memo(
             ))}
           </div>
         )}
-
-        {!editingRow && (
-          <Button variant="blue" onClick={handleAddBlock} className="mt-2">
-            <Plus size={14} /> Add Row
-          </Button>
-        )}
-
-        <div className="mt-4 flex justify-end gap-2 sticky bottom-0 bg-white py-3 border-t border-gray-100 z-10">
-          {onBack ? (
-            <Button variant="outline" onClick={onBack}>
-              {backText}
-            </Button>
-          ) : (
-            <Button variant="red" onClick={onClose}>
-              Back to Workspace
-            </Button>
-          )}
-          {!isLiveTracker && editingRow && onDelete && (
-            <Button
-              variant="red"
-              onClick={() => {
-                setConfirmationModal({
-                  isOpen: true,
-                  title: "Confirm Row Deletion",
-                  message:
-                    "Are you sure you want to delete this row? This action cannot be undone.",
-                  onConfirm: () => {
-                    onDelete(editingRow.id);
-                    onClose();
-                  },
-                });
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              <Trash2 size={14} /> Delete Row
-            </Button>
-          )}
-          <Button variant="green" onClick={handleSave}>
-            {editingRow ? "Update Row" : "Save Rows"}
-          </Button>
+        <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+          <Button onClick={onClose} variant="secondary">Cancel</Button>
+          <Button onClick={handleSave} variant="primary">Save Changes</Button>
         </div>
       </Modal>
-
-      {retiredModalRowIndex !== null && (
-        <RetiredSourcesModal
-          isOpen={true}
-          onClose={() => setRetiredModalRowIndex(null)}
-          sources={(() => {
-            const block = blocks[retiredModalRowIndex];
-            if (!block) return [];
-            const parsed = parseMultiSource(block.total_qty);
-            return splitActiveRetired(parsed).retired;
-          })()}
-          onUnretire={(sourceName) => {
-            const block = blocks[retiredModalRowIndex];
-            if (!block) return;
-            const parsed = parseMultiSource(block.total_qty);
-            const updated = parsed.map((s: any) => s.source === sourceName ? setRetired(s, false) : s);
-            handleUpdateField(retiredModalRowIndex, "total_qty", JSON.stringify(updated));
-          }}
-        />
-      )}
     </>
-  );
-});
+    );
+  }
+);
