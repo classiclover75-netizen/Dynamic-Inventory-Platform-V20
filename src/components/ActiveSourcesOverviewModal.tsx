@@ -626,6 +626,7 @@ export function ActiveSourcesOverviewModal({
                   <td className={getBodyCls('__active_source', "p-2 border whitespace-pre-wrap break-words font-bold text-purple-700 bg-purple-50/30")} style={getBodySty('__active_source', getColWidth('__active_source'))}>
                     <div className="flex items-center gap-1">
                       {highlightText(row._activeSourceName, deferredSearchQuery)}
+                      {row._isLocked && <span className="text-[10px]">🔒</span>}
                       {showAllStatuses && row._isRetired && <span className="text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">(retired)</span>}
                     </div>
                     <div className="text-[10px] text-gray-500 uppercase mt-0.5 tracking-wider">Qty: {row._activeQty}</div>

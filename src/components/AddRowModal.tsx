@@ -1,3 +1,4 @@
+import { isLocked, toggleLockInTotalQty } from "../lib/sourceLockUtils";
 import { isRetired, setRetired, splitActiveRetired } from '../lib/sourceArchiveUtils';
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Input, Modal } from "./ui";
@@ -948,7 +949,7 @@ export const AddRowModal = React.memo(
                                               <div
                                                 ref={provided.innerRef}
                                                 {...provided.draggableProps}
-                                                className={`flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-2 rounded shadow-sm border ${snapshot.isDragging ? 'border-purple-400 shadow-md ring-1 ring-purple-200' : 'border-purple-100'} ${retired ? 'opacity-60 bg-gray-50' : ''}`}
+                                                className={`flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-2 rounded shadow-sm border ${snapshot.isDragging ? 'border-purple-400 shadow-md ring-1 ring-purple-200' : 'border-purple-100'} ${retired ? 'opacity-60 bg-gray-50' : ''} ${!retired && isLocked(src) ? 'opacity-50 grayscale' : ''}`}
                                                 style={provided.draggableProps.style}
                                               >
                                                 <div {...provided.dragHandleProps} className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing px-1 shrink-0">
@@ -976,7 +977,8 @@ export const AddRowModal = React.memo(
                                                     <span className="text-[9px] text-blue-500 leading-tight">Zero qty.<br/>Retire?</span>
                                                   )}
                                                 </div>
-                                                <div className="flex-[2] min-w-[100px]">
+                                                <div className="flex-[2] min-w-[100px] flex items-center gap-1">
+                                                  {!retired && isLocked(src) && <span className="text-[10px]">🔒</span>}
                                                   <textarea
                                                     ref={(el) => {
                                                       if (el && !el.style.height) {
@@ -1028,6 +1030,18 @@ export const AddRowModal = React.memo(
                                           }}
                                         />
                                         <div className="flex items-center ml-auto shrink-0 gap-1">
+                                          <button
+                                            type="button"
+                                            className="text-gray-600 hover:text-gray-800 flex items-center justify-center p-1 rounded hover:bg-gray-100 transition-colors shrink-0"
+                                            onClick={() => {
+                                                const currentStr = JSON.stringify([...activeSources, ...retiredSources]);
+                                                const newTotalQty = toggleLockInTotalQty(currentStr, src.source);
+                                                handleUpdateField(i, col.key, newTotalQty);
+                                            }}
+                                            title={isLocked(src) ? "Unlock source" : "Lock source"}
+                                          >
+                                            <span className="text-[14px]">{isLocked(src) ? "🔓" : "🔒"}</span>
+                                          </button>
                                           <button
                                             type="button"
                                             className="text-red-500 font-bold px-1 hover:text-red-700 flex-shrink-0"

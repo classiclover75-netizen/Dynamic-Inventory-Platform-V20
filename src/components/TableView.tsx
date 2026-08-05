@@ -938,17 +938,7 @@ export const TableView = ({
                                                       </span>{" "}
                                                       <span>{s.qty}</span>
                                                     </div>
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const newTotalQty = toggleLockInTotalQty(rawVal, s.source);
-                                                        handleSaveInlineEdit(activePage!, row.id, "total_qty", newTotalQty);
-                                                      }}
-                                                      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 bg-white/60 hover:bg-white text-gray-700 rounded p-1 shadow-sm border border-black/10 w-6 h-6 flex items-center justify-center text-[10px] cursor-pointer"
-                                                      title={locked ? "Unlock source" : "Lock source"}
-                                                    >
-                                                      {locked ? "🔓" : "🔒"}
-                                                    </button>
+
                                                   </div>
                                                 );
                                               }

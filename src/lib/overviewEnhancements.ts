@@ -1,5 +1,6 @@
 import { parseMultiSource } from './appUtils';
 import { isRetired } from './sourceArchiveUtils';
+import { isLocked } from './sourceLockUtils';
 
 export function getSourceNumericValue(row: any, colKey: string, sourceName: string, isRemaining: boolean = false, columns: any[] = []): number {
     if (isRemaining) {
@@ -172,7 +173,8 @@ export function buildMixedFlatRows(rows: any[], columns: any[], baseSources: Set
                 [sourceProp]: sourceName,
                 [qtyProp]: qty,
                 _totalSales: tSales,
-                _isRetired: isRetired(rs)
+                _isRetired: isRetired(rs),
+                _isLocked: isLocked(rs)
             });
         });
     });

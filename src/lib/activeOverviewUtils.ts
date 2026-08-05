@@ -1,5 +1,6 @@
 import { parseMultiSource } from './appUtils';
 import { isRetired } from './sourceArchiveUtils';
+import { isLocked } from './sourceLockUtils';
 
 export interface ActiveItemInfo {
   itemLabel: string;
@@ -105,6 +106,7 @@ export interface FlatActiveRow {
   _activeSourceName: string;
   _activeQty: number;
   _totalSales: number;
+  _isLocked?: boolean;
   [key: string]: any;
 }
 
@@ -141,7 +143,8 @@ export function buildFlatActiveRows(rows: any[], columns: any[]): FlatActiveRow[
         _originalRowId: row.id,
         _activeSourceName: sourceName,
         _activeQty: activeQty,
-        _totalSales: tSales
+        _totalSales: tSales,
+        _isLocked: isLocked(rs)
       });
     });
   });
