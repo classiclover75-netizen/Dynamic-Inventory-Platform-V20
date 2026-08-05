@@ -9,6 +9,7 @@ import { RowPositionEditor } from "./RowPositionEditor";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
 import { formatSourceNumber } from "../lib/multiSourceHelpers";
 import { RetiredSourcePickerPopup } from "./RetiredSourcePickerPopup";
+import { getVisibleSaleSources } from '../lib/saleColumnSourceFilter';
 
 export const TableView = ({
   activeFilterSaleCol,
@@ -962,11 +963,7 @@ export const TableView = ({
                                       const currentVal =
                                         parseMultiSource(rawVal);
                                       
-                                      const totalSources = totalSourcesRaw.filter((ts: any) => {
-                                          if (!isRetired(ts)) return true;
-                                          const saleEntry = currentVal.find((s: any) => s.source === ts.source);
-                                          return saleEntry && (parseFloat(saleEntry.qty) || 0) > 0;
-                                      });
+                                      const totalSources = getVisibleSaleSources(col, totalSourcesRaw, currentVal);
 
                                       const isCellEditing = inlineEdit?.id?.startsWith(`${row.id}-${col.key}-`);
                                       const draftVal = isCellEditing ? parseMultiSource(inlineEdit!.val) : currentVal;

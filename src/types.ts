@@ -31,6 +31,7 @@ export interface Column {
   width?: number;
   resizeLocked?: boolean;
   archived?: boolean;
+  sourcesSnapshot?: string[];
   options?: string[];
 }
 

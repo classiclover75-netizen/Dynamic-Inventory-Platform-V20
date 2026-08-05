@@ -194,12 +194,27 @@ export function useTrackerActions(deps: {
   const handleAddSaleColumn = async () => {
     if (!customSaleName.trim()) return;
     const newColKey = "sale_" + Date.now();
+    
+    const sourcesSet = new Set<string>();
+    activeRows.forEach(row => {
+      const rawTotal = String(row.total_qty || "0");
+      if (rawTotal.trim().startsWith("[")) {
+        try {
+          const totalSources = parseMultiSource(rawTotal);
+          totalSources.forEach((s: any) => {
+            if (s.source) sourcesSet.add(s.source);
+          });
+        } catch(e) {}
+      }
+    });
+    
     const newCol = {
       key: newColKey,
       name: customSaleName,
       type: "sale_tracker" as const,
       archived: false,
       width: 260,
+      sourcesSnapshot: Array.from(sourcesSet),
     };
 
     // Find where to insert the new column (before existing sale columns)
