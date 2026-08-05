@@ -1,3 +1,4 @@
+
 import { isLocked, toggleLockInTotalQty } from "../lib/sourceLockUtils";
 import { isRetired, setRetired, splitActiveRetired } from '../lib/sourceArchiveUtils';
 import React, { useState, useEffect, useRef } from "react";
@@ -987,10 +988,10 @@ export const AddRowModal = React.memo(
                                                         el.style.height = el.scrollHeight + 'px';
                                                       }
                                                     }}
-                                                    className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none transition-colors resize-none overflow-hidden break-words whitespace-normal ${src.color}`}
+                                                    className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none transition-colors resize-none overflow-hidden break-words whitespace-normal ${getSourceChipStyle(src.color).className}`}
                                                     value={src.source}
                                                     rows={1}
-                                                    style={{ fieldSizing: "content", minHeight: "28px" } as any}
+                                                    style={{ fieldSizing: "content", minHeight: "28px", ...getSourceChipStyle(src.color).style } as any}
                                                     onChange={(e) => {
                                                       e.target.style.height = 'auto';
                                                       e.target.style.height = e.target.scrollHeight + 'px';
@@ -1232,7 +1233,7 @@ export const AddRowModal = React.memo(
                                     const saleQty = existingSale ? existingSale.qty : "";
                                     return (
                                       <div key={tIdx} className="flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-1 rounded shadow-sm border border-gray-100">
-                                        <span className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-[2] min-w-[100px] break-words whitespace-normal ${ts.color || ''}`}>
+                                        <span className={`text-[14px] px-1.5 py-0.5 rounded font-bold flex-[2] min-w-[100px] break-words whitespace-normal ${ts.color ? getSourceChipStyle(ts.color).className : ''}`} style={ts.color ? getSourceChipStyle(ts.color).style : undefined}>
                                           {ts.source}
                                         </span>
                                         <Input

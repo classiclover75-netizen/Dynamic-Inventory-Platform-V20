@@ -1,3 +1,5 @@
+import { getSourceChipStyle } from '../lib/sourceColorUtils';
+
 import { isRetired, splitActiveRetired, sumActive } from '../lib/sourceArchiveUtils';
 import { getRowRetiredSourceNames } from '../lib/rowRetiredFilter';
 import React from "react";
@@ -820,7 +822,7 @@ export const TableView = ({
                                         >
                                           <div className="flex flex-col gap-1 justify-center w-full min-h-[20px]">
                                             {breakdown.map((b: any, idx: number) => (
-                                              <div key={idx} className={`w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 shadow-sm ${b.color}`}>
+                                              <div key={idx} className={`w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 shadow-sm ${getSourceChipStyle(b.color).className}`} style={getSourceChipStyle(b.color).style}>
                                                 <span className="opacity-70 shrink-0 capitalize"><span className="mr-1">{formatSourceNumber(idx)}</span>{b.source}:</span>
                                                 <span className="flex-1 text-right">{b.qty}</span>
                                               </div>
@@ -882,7 +884,7 @@ export const TableView = ({
                                                 return (
                                                   <div
                                                     key={idx}
-                                                    className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.remaining <= (config.minStockAlert ?? 0) ? "bg-[#FF0000] text-white border-[#cc0000] shadow-md" : s.color} ${locked ? "opacity-50 grayscale" : ""}`}
+                                                    className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.remaining <= (config.minStockAlert ?? 0) ? "bg-[#FF0000] text-white border-[#cc0000] shadow-md" : getSourceChipStyle(s.color).className} ${locked ? "opacity-50 grayscale" : ""}`} style={s.remaining <= (config.minStockAlert ?? 0) ? undefined : getSourceChipStyle(s.color).style}
                                                   >
                                                     <span className={`${s.remaining <= (config.minStockAlert ?? 0) ? "text-white font-extrabold opacity-100" : "opacity-70"} flex items-center`}>
                                                       <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:{locked && <span className="ml-1 text-[10px]">🔒</span>}
@@ -930,7 +932,7 @@ export const TableView = ({
                                                       e.stopPropagation();
                                                       if (onOpenActiveSourceOverview) onOpenActiveSourceOverview([s.source]);
                                                     }}
-                                                    className={`group px-2 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${s.color} cursor-pointer hover:opacity-80 transition-opacity ${locked ? "opacity-50 grayscale" : ""}`}
+                                                    className={`group px-2 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${getSourceChipStyle(s.color).className} cursor-pointer hover:opacity-80 transition-opacity ${locked ? "opacity-50 grayscale" : ""}`} style={getSourceChipStyle(s.color).style}
                                                   >
                                                     <div className="flex items-center gap-1">
                                                       <span className="opacity-70 flex items-center">
@@ -967,7 +969,7 @@ export const TableView = ({
                                                     e.stopPropagation();
                                                     if (onOpenRetiredOverview) onOpenRetiredOverview([s.source]);
                                                   }}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color} cursor-pointer hover:opacity-80 transition-opacity`}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${getSourceChipStyle(s.color).className} cursor-pointer hover:opacity-80 transition-opacity`} style={getSourceChipStyle(s.color).style}
                                                 >
                                                   <span className="opacity-70">
                                                     <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
@@ -1053,7 +1055,7 @@ export const TableView = ({
                                                 const locked = isLocked(ts);
                                                 return (
                                                   <div key={idx} className="w-full">
-                                                    <div className={`group w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${ts.color} ${locked ? "opacity-50 grayscale" : ""}`}>
+                                                    <div className={`group w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${getSourceChipStyle(ts.color).className} ${locked ? "opacity-50 grayscale" : ""}`} style={getSourceChipStyle(ts.color).style}>
                                                       <div className="flex items-center justify-between w-full">
                                                         <div className="opacity-70 shrink-0 flex flex-col items-start justify-center">
                                                           <span className="flex items-center">
@@ -1086,13 +1088,13 @@ export const TableView = ({
                                                     {isThisRowEditing && (
                                                       <div 
                                                         className="absolute z-[999999] top-0 right-0 bg-white p-3 rounded-lg shadow-[0_5px_20px_rgba(0,0,0,0.5)] border-[3px] flex flex-col gap-4 min-w-[240px]"
-                                                        style={{ borderColor: ts.color?.includes('blue') ? '#3b82f6' : ts.color?.includes('green') ? '#22c55e' : ts.color?.includes('yellow') ? '#eab308' : ts.color?.includes('red') ? '#ef4444' : ts.color?.includes('purple') ? '#a855f7' : '#94a3b8' }}
+                                                        style={{ borderColor: ts.color?.includes('blue') ? '#3b82f6' : ts.color?.includes('green') ? '#22c55e' : ts.color?.includes('yellow') ? '#eab308' : ts.color?.includes('red') ? '#ef4444' : ts.color?.includes('purple') ? '#a855f7' : ts.color?.startsWith('#') ? ts.color : '#94a3b8' }}
                                                         onClick={(e) => e.stopPropagation()}
                                                       >
                                                         <div className="font-bold text-gray-700 text-[14px]">Edit Sale for {ts.source}</div>
                                                         <div className="text-[11px] text-gray-500 mb-2 -mt-0.5">Previous Value: <span className="font-bold text-gray-800">{originalQty}</span></div>
                                                         <div className="flex items-center justify-between gap-2 border-b pb-3">
-                                                          <span className={`px-2 py-1 rounded text-[15px] font-bold border ${ts.color}`}>{ts.source}</span>
+                                                          <span className={`px-2 py-1 rounded text-[15px] font-bold border ${getSourceChipStyle(ts.color).className}`} style={getSourceChipStyle(ts.color).style}>{ts.source}</span>
                                                           <input
                                                             type="number"
                                                             value={saleQty === 0 ? "0" : saleQty || ""}

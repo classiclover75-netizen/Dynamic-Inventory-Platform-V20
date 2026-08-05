@@ -1,3 +1,5 @@
+import { getSourceChipStyle } from '../lib/sourceColorUtils';
+
 import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { formatCellDisplay } from '../lib/formatCellDisplay';
 import { Search, ArrowLeft } from "lucide-react";
@@ -256,7 +258,7 @@ export const BulkApplySourceModal: React.FC<BulkApplySourceModalProps> = ({
                   }}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1.5 ${
                     isSelected
-                      ? `shadow-md transform scale-105 ${s.color}`
+                      ? `shadow-md transform scale-105 ${getSourceChipStyle(s.color).className}`
                       : "bg-white text-gray-500 border-gray-200 hover:border-blue-300"
                   }`}
                 >
@@ -378,7 +380,7 @@ export const BulkApplySourceModal: React.FC<BulkApplySourceModalProps> = ({
                             <div className="flex flex-wrap gap-1">
                                {currentSources.length > 0 ? (
                                   currentSources.map((src: any, sIdx: number) => (
-                                     <span key={sIdx} className={`px-1.5 py-0.5 rounded text-[12px] font-bold ${src.color}`}>
+                                     <span key={sIdx} className={`px-1.5 py-0.5 rounded text-[12px] font-bold ${getSourceChipStyle(src.color).className}`} style={getSourceChipStyle(src.color).style}>
                                         {src.source}: {src.qty}
                                      </span>
                                   ))
