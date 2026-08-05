@@ -1104,7 +1104,7 @@ export const TableView = ({
                                             {col.archived && hiddenSources.length > 0 && (
                                               <ArchivedSaleSourceAdder
                                                 hiddenSources={hiddenSources}
-                                                onOpenChange={(open) => setAdderOpenCellId(open ? `${row.id}-${col.key}` : null)}
+                                                onOpenChange={(open) => setAdderOpenCellId(prev => open ? `${row.id}-${col.key}` : (prev === `${row.id}-${col.key}` ? null : prev))}
                                                 onSelect={(source) => {
                                                   setInlineEdit({
                                                     id: `${row.id}-${col.key}-${source}`,
