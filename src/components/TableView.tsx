@@ -953,6 +953,12 @@ export const TableView = ({
                                                 );
                                               }
                                             )}
+                                            {totalSources.length >= 2 && (
+                                              <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
+                                                <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
+                                                <span>{sumActive(totalSources)}</span>
+                                              </div>
+                                            )}
                                             {inlineRetired.map(
                                               (s: any, idx: number) => (
                                                 <div
@@ -970,12 +976,6 @@ export const TableView = ({
                                                   <span className="ml-auto text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">(retired)</span>
                                                 </div>
                                               ),
-                                            )}
-                                            {totalSources.length >= 2 && (
-                                              <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
-                                                <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
-                                                <span>{sumActive(totalSources)}</span>
-                                              </div>
                                             )}
                                             {chipRetired.length > 0 && config.showRetiredChipInTotalQty !== false && (
                                               <div className="relative mt-1">
