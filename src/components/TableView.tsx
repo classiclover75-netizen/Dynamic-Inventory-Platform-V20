@@ -34,6 +34,7 @@ export const TableView = ({
 }: any) => {
   const [containerWidth, setContainerWidth] = React.useState<number | null>(null);
   const [openRetiredPickerRowId, setOpenRetiredPickerRowId] = React.useState<string | null>(null);
+  const [adderOpenCellId, setAdderOpenCellId] = React.useState<string | null>(null);
   React.useEffect(() => {
     const parentRef = isSecondary ? secParentRef : primParentRef;
     if (!parentRef?.current) return;
@@ -966,6 +967,8 @@ export const TableView = ({
                                       
                                       
                                       const isCellEditing = inlineEdit?.id?.startsWith(`${row.id}-${col.key}-`);
+                                      const isAdderOpen = adderOpenCellId === `${row.id}-${col.key}`;
+                                      const isCellExpanded = isCellEditing || isAdderOpen;
                                       const inlineEditSource = isCellEditing ? inlineEdit!.id.replace(`${row.id}-${col.key}-`, '') : null;
                                       
                                       const totalSources = getVisibleSaleSources(col, totalSourcesRaw, currentVal, inlineEditSource);
@@ -982,8 +985,8 @@ export const TableView = ({
                                         <td
                                           key={col.key}
                                           {...commonProps}
-                                          style={{ ...commonProps.style, overflow: isCellEditing ? "visible" : commonProps.style.overflow, zIndex: isCellEditing ? 99999 : undefined }}
-                                          className={`p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${hoverClass} text-xs ${isCellEditing ? "relative !z-[60]" : ""}`}
+                                          style={{ ...commonProps.style, overflow: isCellExpanded ? "visible" : commonProps.style.overflow, zIndex: isCellExpanded ? 99999 : undefined }}
+                                          className={`p-1.5 border-r-[length:medium] border-b-[length:medium] border-[#e0e0e0] ${hoverClass} text-xs ${isCellExpanded ? "relative !z-[60]" : ""}`}
                                         >
                                           <div className="flex flex-col gap-1 justify-center w-full min-h-[20px]">
                                             {totalSources.map(
@@ -1101,6 +1104,7 @@ export const TableView = ({
                                             {col.archived && hiddenSources.length > 0 && (
                                               <ArchivedSaleSourceAdder
                                                 hiddenSources={hiddenSources}
+                                                onOpenChange={(open) => setAdderOpenCellId(open ? `${row.id}-${col.key}` : null)}
                                                 onSelect={(source) => {
                                                   setInlineEdit({
                                                     id: `${row.id}-${col.key}-${source}`,

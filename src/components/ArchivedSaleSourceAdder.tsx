@@ -4,11 +4,16 @@ import { Plus } from 'lucide-react';
 interface ArchivedSaleSourceAdderProps {
   hiddenSources: any[];
   onSelect: (source: string) => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ArchivedSaleSourceAdder({ hiddenSources, onSelect }: ArchivedSaleSourceAdderProps) {
+export function ArchivedSaleSourceAdder({ hiddenSources, onSelect, onOpenChange }: ArchivedSaleSourceAdderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -16,10 +21,19 @@ export function ArchivedSaleSourceAdder({ hiddenSources, onSelect }: ArchivedSal
         setIsOpen(false);
       }
     };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [isOpen]);
 
   if (hiddenSources.length === 0) return null;
