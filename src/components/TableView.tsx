@@ -9,7 +9,7 @@ import { RowPositionEditor } from "./RowPositionEditor";
 import { sanitizeHtml } from "../lib/sanitizeHtml";
 import { formatSourceNumber } from "../lib/multiSourceHelpers";
 import { RetiredSourcePickerPopup } from "./RetiredSourcePickerPopup";
-import { getVisibleSaleSources } from '../lib/saleColumnSourceFilter';
+import { getVisibleSaleSources, getCurrentSaleColumnKey } from '../lib/saleColumnSourceFilter';
 import { ArchivedSaleSourceAdder } from './ArchivedSaleSourceAdder';
 
 export const TableView = ({
@@ -35,6 +35,7 @@ export const TableView = ({
   const [containerWidth, setContainerWidth] = React.useState<number | null>(null);
   const [openRetiredPickerRowId, setOpenRetiredPickerRowId] = React.useState<string | null>(null);
   const [adderOpenCellId, setAdderOpenCellId] = React.useState<string | null>(null);
+  const currentSaleKey = React.useMemo(() => getCurrentSaleColumnKey(config?.columns || []), [config?.columns]);
   React.useEffect(() => {
     const parentRef = isSecondary ? secParentRef : primParentRef;
     if (!parentRef?.current) return;
@@ -971,10 +972,11 @@ export const TableView = ({
                                       const isCellExpanded = isCellEditing || isAdderOpen;
                                       const inlineEditSource = isCellEditing ? inlineEdit!.id.replace(`${row.id}-${col.key}-`, '') : null;
                                       
-                                      const totalSources = getVisibleSaleSources(col, totalSourcesRaw, currentVal, inlineEditSource);
+                                      const isCurrentSaleCol = col.key === currentSaleKey;
+                                      const totalSources = getVisibleSaleSources(isCurrentSaleCol, totalSourcesRaw, currentVal, inlineEditSource);
                                       
-                                      // Compute hidden sources for archived columns
-                                      const hiddenSources = col.archived 
+                                      // Compute hidden sources for older sale columns
+                                      const hiddenSources = !isCurrentSaleCol
                                         ? totalSourcesRaw.filter((ts: any) => !totalSources.some((vts: any) => vts.source === ts.source))
                                         : [];
                                         
@@ -1101,7 +1103,7 @@ export const TableView = ({
                                                 }, 0)}</span>
                                               </div>
                                             )}
-                                            {col.archived && hiddenSources.length > 0 && (
+                                            {!isCurrentSaleCol && hiddenSources.length > 0 && (
                                               <ArchivedSaleSourceAdder
                                                 hiddenSources={hiddenSources}
                                                 onOpenChange={(open) => setAdderOpenCellId(prev => open ? `${row.id}-${col.key}` : (prev === `${row.id}-${col.key}` ? null : prev))}
