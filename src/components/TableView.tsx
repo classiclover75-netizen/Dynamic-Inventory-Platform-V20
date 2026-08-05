@@ -1029,7 +1029,7 @@ export const TableView = ({
                                                   <div key={idx} className="w-full">
                                                     <div className={`group w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${ts.color}`}>
                                                       <div className="flex items-center justify-between w-full">
-                                                        <span className="opacity-70 shrink-0"><span className="mr-1">{formatSourceNumber(totalSourcesRaw.findIndex((raw_ts: any) => raw_ts.source === ts.source))}</span>{ts.source}:</span>
+                                                        <span className="opacity-70 shrink-0 flex items-center"><span className="mr-1">{formatSourceNumber(totalSourcesRaw.findIndex((raw_ts: any) => raw_ts.source === ts.source))}</span>{ts.source}:{isRetired(ts) && <span className="ml-1 text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">(retired)</span>}</span>
                                                         <span className="flex-1 text-right">{saleQty}</span>
                                                       </div>
                                                       <button
