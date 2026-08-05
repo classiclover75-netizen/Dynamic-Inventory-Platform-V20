@@ -965,7 +965,7 @@ export const TableView = ({
                                                   key={`inline-ret-${idx}`}
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (onOpenActiveSourceOverview) onOpenActiveSourceOverview([s.source]);
+                                                    if (onOpenRetiredOverview) onOpenRetiredOverview([s.source]);
                                                   }}
                                                   className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color} cursor-pointer hover:opacity-80 transition-opacity`}
                                                 >
