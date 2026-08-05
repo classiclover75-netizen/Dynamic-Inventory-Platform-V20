@@ -12,6 +12,7 @@ import { RetiredSourcePickerPopup } from "./RetiredSourcePickerPopup";
 import { getVisibleSaleSources, getCurrentSaleColumnKey } from '../lib/saleColumnSourceFilter';
 import { ArchivedSaleSourceAdder } from './ArchivedSaleSourceAdder';
 import { getInlineRetiredSourceNames } from '../lib/inlineRetiredHelper';
+import { isLocked, toggleLockInTotalQty } from '../lib/sourceLockUtils';
 
 export const TableView = ({
   activeFilterSaleCol,
@@ -876,17 +877,20 @@ export const TableView = ({
                                         >
                                           <div className="flex flex-col gap-1 justify-center">
                                             {remainingSources.map(
-                                              (s: any, idx: number) => (
-                                                <div
-                                                  key={idx}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.remaining <= (config.minStockAlert ?? 0) ? "bg-[#FF0000] text-white border-[#cc0000] shadow-md" : s.color}`}
-                                                >
-                                                  <span className={s.remaining <= (config.minStockAlert ?? 0) ? "text-white font-extrabold opacity-100" : "opacity-70"}>
-                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
-                                                  </span>{" "}
-                                                  <span>{s.remaining}</span>
-                                                </div>
-                                              ),
+                                              (s: any, idx: number) => {
+                                                const locked = isLocked(s);
+                                                return (
+                                                  <div
+                                                    key={idx}
+                                                    className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.remaining <= (config.minStockAlert ?? 0) ? "bg-[#FF0000] text-white border-[#cc0000] shadow-md" : s.color} ${locked ? "opacity-50 grayscale" : ""}`}
+                                                  >
+                                                    <span className={`${s.remaining <= (config.minStockAlert ?? 0) ? "text-white font-extrabold opacity-100" : "opacity-70"} flex items-center`}>
+                                                      <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:{locked && <span className="ml-1 text-[10px]">🔒</span>}
+                                                    </span>{" "}
+                                                    <span>{s.remaining}</span>
+                                                  </div>
+                                                );
+                                              }
                                             )}
                                             {totalSources.length >= 2 && (
                                               <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
@@ -917,21 +921,37 @@ export const TableView = ({
                                         >
                                           <div className="flex flex-col gap-1 justify-center relative group">
                                             {active.map(
-                                              (s: any, idx: number) => (
-                                                <div
-                                                  key={idx}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (onOpenActiveSourceOverview) onOpenActiveSourceOverview([s.source]);
-                                                  }}
-                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color} cursor-pointer hover:opacity-80 transition-opacity`}
-                                                >
-                                                  <span className="opacity-70">
-                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
-                                                  </span>{" "}
-                                                  <span>{s.qty}</span>
-                                                </div>
-                                              ),
+                                              (s: any, idx: number) => {
+                                                const locked = isLocked(s);
+                                                return (
+                                                  <div
+                                                    key={idx}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      if (onOpenActiveSourceOverview) onOpenActiveSourceOverview([s.source]);
+                                                    }}
+                                                    className={`group px-2 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${s.color} cursor-pointer hover:opacity-80 transition-opacity ${locked ? "opacity-50 grayscale" : ""}`}
+                                                  >
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="opacity-70 flex items-center">
+                                                        <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:{locked && <span className="ml-1 text-[10px]">🔒</span>}
+                                                      </span>{" "}
+                                                      <span>{s.qty}</span>
+                                                    </div>
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newTotalQty = toggleLockInTotalQty(rawVal, s.source);
+                                                        handleSaveInlineEdit(activePage!, row.id, "total_qty", newTotalQty);
+                                                      }}
+                                                      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 bg-white/60 hover:bg-white text-gray-700 rounded p-1 shadow-sm border border-black/10 w-6 h-6 flex items-center justify-center text-[10px] cursor-pointer"
+                                                      title={locked ? "Unlock source" : "Lock source"}
+                                                    >
+                                                      {locked ? "🔓" : "🔒"}
+                                                    </button>
+                                                  </div>
+                                                );
+                                              }
                                             )}
                                             {inlineRetired.map(
                                               (s: any, idx: number) => (
@@ -999,10 +1019,15 @@ export const TableView = ({
                                       const isCurrentSaleCol = col.key === currentSaleKey;
                                       const totalSources = getVisibleSaleSources(isCurrentSaleCol, totalSourcesRaw, currentVal, inlineEditSource);
                                       
-                                      // Compute hidden sources for older sale columns
-                                      const hiddenSources = !isCurrentSaleCol
-                                        ? totalSourcesRaw.filter((ts: any) => !totalSources.some((vts: any) => vts.source === ts.source))
-                                        : [];
+                                      // Compute hidden sources for sale columns
+                                      const hiddenSources = totalSourcesRaw.filter((ts: any) => {
+                                        const isVisible = totalSources.some((vts: any) => vts.source === ts.source);
+                                        if (isVisible) return false;
+                                        if (isCurrentSaleCol) {
+                                            return isLocked(ts); // Only locked sources can be hidden in current col
+                                        }
+                                        return true; // Older columns hide all non-visible
+                                      });
                                         
                                       const draftVal = isCellEditing ? parseMultiSource(inlineEdit!.val) : currentVal;
 
@@ -1025,13 +1050,14 @@ export const TableView = ({
                                                 const originalSaleEntry = currentVal.find((s: any) => s.source === ts.source);
                                                 const originalQty = originalSaleEntry ? originalSaleEntry.qty : 0;
 
+                                                const locked = isLocked(ts);
                                                 return (
                                                   <div key={idx} className="w-full">
-                                                    <div className={`group w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${ts.color}`}>
+                                                    <div className={`group w-full px-1.5 py-0.5 rounded text-[14px] font-bold border flex items-center justify-between gap-1 ${ts.color} ${locked ? "opacity-50 grayscale" : ""}`}>
                                                       <div className="flex items-center justify-between w-full">
                                                         <div className="opacity-70 shrink-0 flex flex-col items-start justify-center">
                                                           <span className="flex items-center">
-                                                            <span className="mr-1">{formatSourceNumber(totalSourcesRaw.findIndex((raw_ts: any) => raw_ts.source === ts.source))}</span>{ts.source}:
+                                                            <span className="mr-1">{formatSourceNumber(totalSourcesRaw.findIndex((raw_ts: any) => raw_ts.source === ts.source))}</span>{ts.source}:{locked && <span className="ml-1 text-[10px]">🔒</span>}
                                                           </span>
                                                           {isRetired(ts) && (
                                                             <span className="text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap mt-0.5 self-start">(retired)</span>
@@ -1039,7 +1065,7 @@ export const TableView = ({
                                                         </div>
                                                         <span className="flex-1 text-right">{saleQty}</span>
                                                       </div>
-                                                      <button
+                                                      {!locked && <button
                                                         onClick={(e) => {
                                                           e.stopPropagation();
                                                           setInlineEdit({
@@ -1054,7 +1080,7 @@ export const TableView = ({
                                                         title="Edit sale"
                                                       >
                                                         ✏️
-                                                      </button>
+                                                      </button>}
                                                     </div>
 
                                                     {isThisRowEditing && (
@@ -1134,7 +1160,7 @@ export const TableView = ({
                                                 }, 0)}</span>
                                               </div>
                                             )}
-                                            {!isCurrentSaleCol && hiddenSources.length > 0 && (
+                                            {hiddenSources.length > 0 && (
                                               <ArchivedSaleSourceAdder
                                                 hiddenSources={hiddenSources}
                                                 onOpenChange={(open) => setAdderOpenCellId(prev => open ? `${row.id}-${col.key}` : (prev === `${row.id}-${col.key}` ? null : prev))}

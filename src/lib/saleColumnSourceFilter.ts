@@ -1,4 +1,5 @@
 import { isRetired } from './sourceArchiveUtils';
+import { isLocked } from './sourceLockUtils';
 
 export function getCurrentSaleColumnKey(columns: any[]): string | null {
     let maxTimestamp = -1;
@@ -32,7 +33,7 @@ export function getVisibleSaleSources(isCurrent: boolean, totalSourcesRaw: any[]
 
         if (isCurrent) {
             // Current (newest) sale column
-            if (isRetired(ts)) {
+            if (isRetired(ts) || isLocked(ts)) {
                 const saleEntry = saleEntries.find((s: any) => s.source === ts.source);
                 return saleEntry && (parseFloat(saleEntry.qty) || 0) > 0;
             }

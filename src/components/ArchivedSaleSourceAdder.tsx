@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus } from 'lucide-react';
+import { isLocked } from '../lib/sourceLockUtils';
 
 interface ArchivedSaleSourceAdderProps {
   hiddenSources: any[];
@@ -49,7 +50,6 @@ export function ArchivedSaleSourceAdder({ hiddenSources, onSelect, onOpenChange 
       >
         <Plus size={14} />
       </button>
-
       {isOpen && (
         <div 
           className="absolute left-0 mt-1 w-48 bg-white border shadow-lg rounded z-[99999] py-1 max-h-48 overflow-y-auto"
@@ -64,10 +64,11 @@ export function ArchivedSaleSourceAdder({ hiddenSources, onSelect, onOpenChange 
                 setIsOpen(false);
                 onSelect(ts.source);
               }}
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 text-gray-700 truncate"
+              className="w-full flex items-center text-left px-3 py-1.5 text-sm hover:bg-blue-50 text-gray-700 truncate"
             >
-              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${ts.color?.replace('bg-', 'bg-').replace('text-', 'text-') || 'bg-gray-400'}`}></span>
-              {ts.source}
+              <span className={`inline-block shrink-0 w-2 h-2 rounded-full mr-2 ${ts.color?.replace('bg-', 'bg-').replace('text-', 'text-') || 'bg-gray-400'}`}></span>
+              {isLocked(ts) && <span className="mr-1 text-[10px]">🔒</span>}
+              <span className="truncate">{ts.source}</span>
             </button>
           ))}
         </div>
