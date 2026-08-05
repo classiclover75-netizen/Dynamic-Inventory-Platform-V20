@@ -922,7 +922,7 @@ function AppContent() {
     }
   };
 
-  const { handleSaveActivePageSettings, handleSaveRows } = useSaveActions({
+  const { handleSaveActivePageSettings, handleSaveRows, handleBulkUpdateRows } = useSaveActions({
     state,
     setState,
     toast,
@@ -2330,6 +2330,7 @@ function AppContent() {
           );
           closeAllModals();
         }}
+        onUpdateMultipleRows={handleBulkUpdateRows}
         columns={
           previewContext
             ? state.pageConfigs[previewContext.pageName]?.columns || []

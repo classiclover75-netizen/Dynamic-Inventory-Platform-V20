@@ -196,5 +196,28 @@ export function useSaveActions(deps: {
     }
   };
 
-  return { handleSaveActivePageSettings, handleSaveRows };
+
+  const handleBulkUpdateRows = async (pageName: string, updatesObj: Record<string, any>) => {
+    if (Object.keys(updatesObj).length === 0) return;
+    try {
+      await bulkPatchRows(pageName, { updates: updatesObj }, true);
+      setState((prev: any) => {
+        const currentRows = [...(prev.pageRows[pageName] || [])];
+        for (const [id, changes] of Object.entries(updatesObj)) {
+          const idx = currentRows.findIndex(r => r.id === id);
+          if (idx >= 0) {
+            currentRows[idx] = { ...currentRows[idx], ...(changes as any) };
+          }
+        }
+        return { ...prev, pageRows: { ...prev.pageRows, [pageName]: currentRows } };
+      });
+      toast("Rows updated successfully");
+    } catch (err) {
+      console.error(err);
+      toast("Failed to bulk update rows");
+    }
+  };
+
+  return { handleSaveActivePageSettings, handleSaveRows, handleBulkUpdateRows };
 }
+

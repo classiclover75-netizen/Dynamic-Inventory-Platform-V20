@@ -13,7 +13,7 @@ import {
   RotateCcw,
   Undo2,
   X,
-  Copy,
+  Copy, Palette,
   Layers3,
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -22,7 +22,7 @@ import { GripVertical, ArrowDownAZ } from "lucide-react";
 import { RichDropdownSelect } from "./RichDropdownSelect";
 import { SourceAutocompleteInput, useSourceSuggestions } from "./SourceAutocompleteInput";
 import { RetiredSourcesModal } from "./RetiredSourcesModal";
-import { generateUniqueSourceColor, collectUsedSourceColors, getSourceChipStyle } from '../lib/sourceColorUtils';
+import { generateUniqueSourceColor, collectUsedSourceColors, getSourceChipStyle, updateSourceColorInRows } from '../lib/sourceColorUtils';
 
 const RichTextEditor = ({
   value,
@@ -207,6 +207,7 @@ export const AddRowModal = React.memo(
     isLiveTracker = false,
     sourceSuggestionsEnabled = false,
     onToggleSourceSuggestions,
+    onUpdateMultipleRows,
   }: {
     isOpen: boolean;
     onClose: () => void;
@@ -233,6 +234,7 @@ export const AddRowModal = React.memo(
     isLiveTracker?: boolean;
     sourceSuggestionsEnabled?: boolean;
     onToggleSourceSuggestions?: (val: boolean) => void;
+    onUpdateMultipleRows?: (pageName: string, updates: Record<string, any>) => void;
   }) => {
     const { toast } = useToast();
     const [blocks, setBlocks] = useState<Record<string, any>[]>([{}]);
@@ -254,6 +256,56 @@ export const AddRowModal = React.memo(
     
     const sourceSuggestions = useSourceSuggestions(allRows || [], blocks);
     const [retiredModalRowIndex, setRetiredModalRowIndex] = useState<number | null>(null);
+
+    const [colorEditId, setColorEditId] = useState<string | null>(null);
+    const [colorEditHex, setColorEditHex] = useState<string>("");
+
+    const handleSaveColor = (sourceName: string, hex: string) => {
+      if (/^#([0-9A-Fa-f]{3}){1,2}$/i.test(hex) && onUpdateMultipleRows && allRows) {
+        const changes = updateSourceColorInRows(allRows, columns, sourceName, hex);
+        
+        const updatesObj: Record<string, any> = {};
+        changes.forEach((change: any) => {
+          if (!updatesObj[change.rowId]) updatesObj[change.rowId] = {};
+          updatesObj[change.rowId][change.colKey] = change.newValue;
+        });
+
+        if (Object.keys(updatesObj).length > 0) {
+          onUpdateMultipleRows(activePage, updatesObj);
+        }
+
+        setBlocks(prevBlocks => {
+          return prevBlocks.map(block => {
+            const newBlock = { ...block };
+            columns.forEach(col => {
+              if (col.type === ('multi_source' as any) || col.type === 'sale_tracker' || col.key === 'total_qty') {
+                 const val = newBlock[col.key];
+                 if (val && typeof val === 'string' && val.trim().startsWith('[')) {
+                    try {
+                      const parsed = JSON.parse(val);
+                      if (Array.isArray(parsed)) {
+                        let changed = false;
+                        const newParsed = parsed.map((item: any) => {
+                          if (item.source && item.source.toLowerCase() === sourceName.toLowerCase()) {
+                             changed = true;
+                             return { ...item, color: hex };
+                          }
+                          return item;
+                        });
+                        if (changed) {
+                           newBlock[col.key] = JSON.stringify(newParsed);
+                        }
+                      }
+                    } catch(e){}
+                 }
+              }
+            });
+            return newBlock;
+          });
+        });
+      }
+      setColorEditId(null);
+    };
 
     const editableCols = columns.filter((c) => c.key !== "sr");
 
@@ -951,7 +1003,7 @@ export const AddRowModal = React.memo(
                                               <div
                                                 ref={provided.innerRef}
                                                 {...provided.draggableProps}
-                                                className={`flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-2 rounded shadow-sm border ${snapshot.isDragging ? 'border-purple-400 shadow-md ring-1 ring-purple-200' : 'border-purple-100'} ${retired ? 'opacity-60 bg-gray-50' : ''} ${!retired && isLocked(src) ? 'opacity-50 grayscale' : ''}`}
+                                                className={`group flex flex-wrap sm:flex-nowrap w-full box-border gap-2 items-center bg-white p-2 rounded shadow-sm border ${snapshot.isDragging ? 'border-purple-400 shadow-md ring-1 ring-purple-200' : 'border-purple-100'} ${retired ? 'opacity-60 bg-gray-50' : ''} ${!retired && isLocked(src) ? 'opacity-50 grayscale' : ''}`}
                                                 style={provided.draggableProps.style}
                                               >
                                                 <div {...provided.dragHandleProps} className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing px-1 shrink-0">
@@ -981,36 +1033,73 @@ export const AddRowModal = React.memo(
                                                 </div>
                                                 <div className="flex-[2] min-w-[100px] flex items-center gap-1">
                                                   {!retired && isLocked(src) && <span className="text-[10px]">🔒</span>}
-                                                  <textarea
-                                                    ref={(el) => {
-                                                      if (el && !el.style.height) {
-                                                        el.style.height = 'auto';
-                                                        el.style.height = el.scrollHeight + 'px';
-                                                      }
-                                                    }}
-                                                    className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none transition-colors resize-none overflow-hidden break-words whitespace-normal ${getSourceChipStyle(src.color).className}`}
-                                                    value={src.source}
-                                                    rows={1}
-                                                    style={{ fieldSizing: "content", minHeight: "28px", ...getSourceChipStyle(src.color).style } as any}
-                                                    onChange={(e) => {
-                                                      e.target.style.height = 'auto';
-                                                      e.target.style.height = e.target.scrollHeight + 'px';
-                                                      const copyActive = [...activeSources];
-                                                      const oldName = copyActive[idx].source;
-                                                      const newName = e.target.value;
-                                                      copyActive[idx].source = newName;
-                                                      const newAll = [...copyActive, ...retiredSources];
-                                                      if (oldName !== newName) {
-                                                        handleSourceRename(i, oldName, newName, newAll);
-                                                      } else {
-                                                        handleUpdateField(
-                                                          i,
-                                                          col.key,
-                                                          JSON.stringify(newAll),
-                                                        );
-                                                      }
-                                                    }}
-                                                  />
+                                                  {colorEditId === `${i}-${col.key}-${idx}` ? (
+                                                    <input
+                                                      autoFocus
+                                                      type="text"
+                                                      value={colorEditHex}
+                                                      onChange={(e) => setColorEditHex(e.target.value)}
+                                                      onBlur={() => {
+                                                        if (/^#([0-9A-Fa-f]{3}){1,2}$/i.test(colorEditHex)) {
+                                                          handleSaveColor(src.source, colorEditHex);
+                                                        } else {
+                                                          setColorEditId(null);
+                                                        }
+                                                      }}
+                                                      onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                          e.currentTarget.blur();
+                                                        } else if (e.key === 'Escape') {
+                                                          setColorEditId(null);
+                                                        }
+                                                      }}
+                                                      className="w-[90px] text-xs font-mono border rounded px-1 py-0.5"
+                                                      placeholder="#FF5733"
+                                                    />
+                                                  ) : (
+                                                    <>
+                                                      <textarea
+                                                        ref={(el) => {
+                                                          if (el && !el.style.height) {
+                                                            el.style.height = 'auto';
+                                                            el.style.height = el.scrollHeight + 'px';
+                                                          }
+                                                        }}
+                                                        className={`w-full box-border text-[14px] px-1.5 py-0.5 rounded font-bold border border-transparent hover:border-gray-300 outline-none transition-colors resize-none overflow-hidden break-words whitespace-normal ${getSourceChipStyle(src.color).className}`}
+                                                        value={src.source}
+                                                        rows={1}
+                                                        style={{ fieldSizing: "content", minHeight: "28px", ...getSourceChipStyle(src.color).style } as any}
+                                                        onChange={(e) => {
+                                                          e.target.style.height = 'auto';
+                                                          e.target.style.height = e.target.scrollHeight + 'px';
+                                                          const copyActive = [...activeSources];
+                                                          const oldName = copyActive[idx].source;
+                                                          const newName = e.target.value;
+                                                          copyActive[idx].source = newName;
+                                                          const newAll = [...copyActive, ...retiredSources];
+                                                          if (oldName !== newName) {
+                                                            handleSourceRename(i, oldName, newName, newAll);
+                                                          } else {
+                                                            handleUpdateField(
+                                                              i,
+                                                              col.key,
+                                                              JSON.stringify(newAll),
+                                                            );
+                                                          }
+                                                        }}
+                                                      />
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          setColorEditId(`${i}-${col.key}-${idx}`);
+                                                          setColorEditHex(src.color?.startsWith('#') ? src.color : '');
+                                                        }}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-700 ml-1 shrink-0"
+                                                      >
+                                                        <Palette size={12} />
+                                                      </button>
+                                                    </>
+                                                  )}
                                                 </div>
                                         <Input
                                           type="number"
@@ -1313,7 +1402,7 @@ export const AddRowModal = React.memo(
                                       className={`p-1.5 rounded border transition-all cursor-pointer ${isHidden ? "bg-gray-100 text-gray-400 border-gray-200" : "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"}`}
                                       title={isHidden ? "Show Copy Button" : "Hide Copy Button"}
                                     >
-                                      👁️
+                                      <Copy size={16} />
                                     </button>
                                     <button
                                       type="button"
@@ -1394,8 +1483,40 @@ export const AddRowModal = React.memo(
           </div>
         )}
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-          <Button onClick={onClose} variant="secondary">Cancel</Button>
-          <Button onClick={handleSave} variant="primary">Save Changes</Button>
+          {isLiveTracker ? (
+            <Button variant="red" onClick={onClose}>
+              Back to Workspace
+            </Button>
+          ) : (
+            <>
+              {editingRow && onDelete && (
+                <Button
+                  variant="red"
+                  className="bg-red-600 hover:bg-red-700 text-white mr-auto"
+                  onClick={() =>
+                    setConfirmationModal({
+                      isOpen: true,
+                      title: "Confirm Row Deletion",
+                      message: "Are you sure you want to delete this row? This action cannot be undone.",
+                      onConfirm: () => {
+                        if (editingRow.id) onDelete(editingRow.id);
+                        onClose();
+                      },
+                    })
+                  }
+                >
+                  <Trash2 size={14} />
+                  Delete Row
+                </Button>
+              )}
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button variant="green" onClick={handleSave}>
+                {editingRow ? "Update Row" : "Save Rows"}
+              </Button>
+            </>
+          )}
         </div>
       </Modal>
     </>

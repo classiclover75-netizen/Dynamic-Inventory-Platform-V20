@@ -5,7 +5,7 @@ export function collectUsedSourceColors(rows: any[], columns: any[]): string[] {
     
     if (!rows || !columns) return [];
 
-    const relevantCols = columns.filter((c: any) => c.type === 'multi_source' || c.type === 'sale_tracker' || c.key === 'total_qty');
+    const relevantCols = columns.filter((c: any) => c.type === ('multi_source' as any) || c.type === 'sale_tracker' || c.key === 'total_qty');
 
     rows.forEach(row => {
         relevantCols.forEach((col: any) => {
@@ -95,4 +95,46 @@ export function getSourceChipStyle(color: string): { className: string; style?: 
 
     // Legacy Tailwind string
     return { className: color };
+}
+
+export function updateSourceColorInRows(rows: any[], columns: any[], sourceName: string, hex: string): { rowId: string; colKey: string; newValue: string }[] {
+    const changes: { rowId: string; colKey: string; newValue: string }[] = [];
+    if (!rows || !columns || !sourceName) return changes;
+    
+    const relevantCols = columns.filter((c: any) => c.type === ('multi_source' as any) || c.type === 'sale_tracker' || c.key === 'total_qty');
+    
+    rows.forEach(row => {
+        relevantCols.forEach((col: any) => {
+            const val = row[col.key];
+            if (val && typeof val === 'string' && val.trim().startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(val);
+                    if (Array.isArray(parsed)) {
+                        let changed = false;
+                        const newParsed = parsed.map(item => {
+                            if (item.source && item.source.toLowerCase() === sourceName.toLowerCase()) {
+                                if (item.color !== hex) {
+                                    changed = true;
+                                    return { ...item, color: hex };
+                                }
+                            }
+                            return item;
+                        });
+                        
+                        if (changed) {
+                            changes.push({
+                                rowId: row.id,
+                                colKey: col.key,
+                                newValue: JSON.stringify(newParsed)
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // Ignore parse errors
+                }
+            }
+        });
+    });
+    
+    return changes;
 }
