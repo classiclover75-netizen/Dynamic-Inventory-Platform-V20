@@ -261,6 +261,7 @@ export const BulkApplySourceModal: React.FC<BulkApplySourceModalProps> = ({
                       ? `shadow-md transform scale-105 ${getSourceChipStyle(s.color).className}`
                       : "bg-white text-gray-500 border-gray-200 hover:border-blue-300"
                   }`}
+                  style={isSelected ? getSourceChipStyle(s.color).style : undefined}
                 >
                   <input
                     type="checkbox"
