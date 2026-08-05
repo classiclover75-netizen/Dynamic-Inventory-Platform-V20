@@ -11,6 +11,7 @@ import { formatSourceNumber } from "../lib/multiSourceHelpers";
 import { RetiredSourcePickerPopup } from "./RetiredSourcePickerPopup";
 import { getVisibleSaleSources, getCurrentSaleColumnKey } from '../lib/saleColumnSourceFilter';
 import { ArchivedSaleSourceAdder } from './ArchivedSaleSourceAdder';
+import { getInlineRetiredSourceNames } from '../lib/inlineRetiredHelper';
 
 export const TableView = ({
   activeFilterSaleCol,
@@ -901,6 +902,11 @@ export const TableView = ({
                                     if (col.key === "total_qty") {
                                       const totalSources = parseMultiSource(rawVal);
                                       const { active, retired } = splitActiveRetired(totalSources);
+                                      
+                                      const inlineSet = getInlineRetiredSourceNames(config.columns, activeFilterSaleCol, row);
+                                      const inlineRetired = retired.filter((s: any) => inlineSet.has(s.source));
+                                      const chipRetired = retired.filter((s: any) => !inlineSet.has(s.source));
+                                      
                                       const isPickerOpen = openRetiredPickerRowId === row.id;
                                       return (
                                         <td
@@ -927,13 +933,31 @@ export const TableView = ({
                                                 </div>
                                               ),
                                             )}
+                                            {inlineRetired.map(
+                                              (s: any, idx: number) => (
+                                                <div
+                                                  key={`inline-ret-${idx}`}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onOpenActiveSourceOverview) onOpenActiveSourceOverview([s.source]);
+                                                  }}
+                                                  className={`px-2 py-0.5 rounded text-[14px] font-bold border flex items-center gap-1 ${s.color} cursor-pointer hover:opacity-80 transition-opacity`}
+                                                >
+                                                  <span className="opacity-70">
+                                                    <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:
+                                                  </span>{" "}
+                                                  <span>{s.qty}</span>
+                                                  <span className="ml-auto text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">(retired)</span>
+                                                </div>
+                                              ),
+                                            )}
                                             {totalSources.length >= 2 && (
                                               <div className="mt-1 pt-1 border-t border-gray-200 text-gray-900 font-extrabold text-[15px] flex items-center justify-between w-full px-1">
                                                 <span className="opacity-50 text-[11px] uppercase tracking-wider">Total</span>
                                                 <span>{sumActive(totalSources)}</span>
                                               </div>
                                             )}
-                                            {retired.length > 0 && config.showRetiredChipInTotalQty !== false && (
+                                            {chipRetired.length > 0 && config.showRetiredChipInTotalQty !== false && (
                                               <div className="relative mt-1">
                                                 <button
                                                   onClick={(e) => {
@@ -942,11 +966,11 @@ export const TableView = ({
                                                   }}
                                                   className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-bold py-0.5 px-2 rounded-full border border-gray-200 flex items-center justify-center gap-1.5 transition-colors"
                                                 >
-                                                  <span>🗄️ {retired.length} retired</span>
+                                                  <span>🗄️ {chipRetired.length} retired</span>
                                                 </button>
                                                 {openRetiredPickerRowId === row.id && (
                                                   <RetiredSourcePickerPopup
-                                                    retiredSources={retired}
+                                                    retiredSources={chipRetired}
                                                     onClose={() => setOpenRetiredPickerRowId(null)}
                                                     onDone={(selected) => {
                                                       setOpenRetiredPickerRowId(null);
