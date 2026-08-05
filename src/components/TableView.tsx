@@ -934,11 +934,21 @@ export const TableView = ({
                                                   >
                                                     <div className="flex items-center gap-1">
                                                       <span className="opacity-70 flex items-center">
-                                                        <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:{locked && <span className="ml-1 text-[10px]">🔒</span>}
+                                                        <span className="mr-1">{formatSourceNumber(totalSources.findIndex((ts: any) => ts.source === s.source))}</span>{s.source}:{locked && <span className="ml-1 text-[13px]">🔒</span>}
                                                       </span>{" "}
                                                       <span>{s.qty}</span>
                                                     </div>
-
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newTotalQty = toggleLockInTotalQty(rawVal, s.source);
+                                                        handleSaveInlineEdit(activePage!, row.id, "total_qty", newTotalQty);
+                                                      }}
+                                                      className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 bg-white/60 hover:bg-white text-gray-700 rounded p-1 shadow-sm border border-black/10 w-7 h-7 flex items-center justify-center text-[14px] cursor-pointer"
+                                                      title={locked ? "Unlock source" : "Lock source"}
+                                                    >
+                                                      {locked ? "🔓" : "🔒"}
+                                                    </button>
                                                   </div>
                                                 );
                                               }
