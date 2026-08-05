@@ -10,6 +10,7 @@ import { sanitizeHtml } from "../lib/sanitizeHtml";
 import { formatSourceNumber } from "../lib/multiSourceHelpers";
 import { RetiredSourcePickerPopup } from "./RetiredSourcePickerPopup";
 import { getVisibleSaleSources } from '../lib/saleColumnSourceFilter';
+import { ArchivedSaleSourceAdder } from './ArchivedSaleSourceAdder';
 
 export const TableView = ({
   activeFilterSaleCol,
@@ -963,10 +964,19 @@ export const TableView = ({
                                       const currentVal =
                                         parseMultiSource(rawVal);
                                       
-                                      const totalSources = getVisibleSaleSources(col, totalSourcesRaw, currentVal);
-
+                                      
                                       const isCellEditing = inlineEdit?.id?.startsWith(`${row.id}-${col.key}-`);
+                                      const inlineEditSource = isCellEditing ? inlineEdit!.id.replace(`${row.id}-${col.key}-`, '') : null;
+                                      
+                                      const totalSources = getVisibleSaleSources(col, totalSourcesRaw, currentVal, inlineEditSource);
+                                      
+                                      // Compute hidden sources for archived columns
+                                      const hiddenSources = col.archived 
+                                        ? totalSourcesRaw.filter((ts: any) => !totalSources.some((vts: any) => vts.source === ts.source))
+                                        : [];
+                                        
                                       const draftVal = isCellEditing ? parseMultiSource(inlineEdit!.val) : currentVal;
+
 
                                       return (
                                         <td
@@ -1087,6 +1097,20 @@ export const TableView = ({
                                                     return sum + (currentSaleEntry ? (Number(currentSaleEntry.qty) || 0) : 0);
                                                 }, 0)}</span>
                                               </div>
+                                            )}
+                                            {col.archived && hiddenSources.length > 0 && (
+                                              <ArchivedSaleSourceAdder
+                                                hiddenSources={hiddenSources}
+                                                onSelect={(source) => {
+                                                  setInlineEdit({
+                                                    id: `${row.id}-${col.key}-${source}`,
+                                                    colKey: col.key,
+                                                    val: rawVal ? String(rawVal) : JSON.stringify([]),
+                                                    history: [],
+                                                    historyPointer: 0,
+                                                  });
+                                                }}
+                                              />
                                             )}
                                           </div>
                                         </td>
